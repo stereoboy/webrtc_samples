@@ -3,18 +3,19 @@
 * Official Development Document
   * https://webrtc.github.io/webrtc-org/native-code/development/
   * https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up
+* Official Branch Details
+  * https://chromiumdash.appspot.com/branches
+* build libwebrtc.a
+  * https://github.com/Tohntobshi/webrtcexample
+* DataChannel Sample
+  * https://github.com/llamerada-jp/webrtc-cpp-sample
+
+### Source Download
 ```
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
 export PATH=/path/to/depot_tools:$PATH
 ```
-
-* Official Branch Details
-  * https://chromiumdash.appspot.com/branches
-
-* https://github.com/Tohntobshi/webrtcexample
-
-### Source Download
 ```
 mkdir webrtc-checkout
 cd webrtc-checkout
@@ -55,11 +56,9 @@ gn args out/Default --list --short
 ```
 ninja -C out/Default
 ```
-
-
 * https://groups.google.com/g/discuss-webrtc/c/do0JGb44YmM
-libc++-10-dev
-libc++abi-10-dev
+  * libc++-10-dev
+  * libc++abi-10-dev
 
 ```
 ninja -C out/Custom webrtc
@@ -67,3 +66,9 @@ ninja -C out/Custom webrtc
 ```
 apt-get install libc++abi-11-dev libc++-10-dev
 ```
+
+### NVIDIA Jetson
+* Hardware Acceleration in the WebRTC Framework
+  * https://docs.nvidia.com/jetson/archives/r36.3/DeveloperGuide/SD/HardwareAccelerationInTheWebrtcFramework.html
+  * https://developer.nvidia.com/embedded/jetson-linux-r363
+* commit id `d0c86830d00d6aa4608cd6f9970352e583f16308`
