@@ -25,10 +25,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED 17) #setting C++
 # test.cpp ")
 #including header files directory
 include_directories(
-  ${CMAKE_SOURCE_DIR}/../src
-  ${CMAKE_SOURCE_DIR}/../src/third_party/abseil-cpp
-  ${CMAKE_SOURCE_DIR}/../src/buildtools/third_party/libc++
-  ${CMAKE_SOURCE_DIR}/../src/third_party/libyuv/include
+  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src
+  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/third_party/abseil-cpp
+  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/buildtools/third_party/libc++
+  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/third_party/libyuv/include
 )
 
 # Add the missing find_package(Threads REQUIRED) command
@@ -36,7 +36,7 @@ find_package(Threads REQUIRED)
 find_package(X11 REQUIRED)
 
 add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../src/out/Default/obj/libwebrtc.a)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Custom/obj/libwebrtc.a)
 
 #building target executable
 add_executable(webrtc_lib_link_test webrtc_lib_link_test.cc)
@@ -48,7 +48,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 # #linking library directory
 target_link_directories( webrtc_lib_link_test PUBLIC
-    ${CMAKE_SOURCE_DIR}/../src/out/Default/obj/
+    # ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Custom/obj/
 )
 
 target_link_libraries(
