@@ -7,8 +7,17 @@
   * https://chromiumdash.appspot.com/branches
 * build libwebrtc.a
   * https://github.com/Tohntobshi/webrtcexample
+  * https://github.com/aisouard/libwebrtc
 * DataChannel Sample
   * https://github.com/llamerada-jp/webrtc-cpp-sample
+* Audio/Video/Data
+  * https://github.com/MemeTao/webrtc-native-examples
+* Mozilla Mirror
+  * https://github.com/mozilla/libwebrtc
+* How To Compile Native WebRTC Library from Source for Android
+  * https://medium.com/@abdularis/how-to-compile-native-webrtc-from-source-for-android-d0bac8e4c933
+#### clang
+* https://libcxx.llvm.org/UsingLibcxx.html#using-a-custom-built-libc
 
 ### Source Download
 ```
@@ -66,6 +75,31 @@ ninja -C out/Custom webrtc
 ```
 apt-get install libc++abi-11-dev libc++-10-dev
 ```
+### Test for Video/Audio
+* https://webrtc.github.io/webrtc-org/native-code/development/
+  * `Example Applications` Section
+* Terminal A
+```
+./peerconnection_server
+```
+* Terminal B
+```
+./peerconnection_client
+```
+* Terminal C
+```
+./peerconnection_client
+```
+  <p align="left">
+    <img src="../../docs/screenshots/2024_05_14_screenshot_01.png" width="640">
+  </p>
+  * click the peer `
+  <p align="left">
+    <img src="../../docs/screenshots/2024_05_14_screenshot_02.png" width="640">
+  </p>
+  <p align="left">
+    <img src="../../docs/screenshots/2024_05_14_screenshot_00.png" width="640">
+  </p>
 
 ### NVIDIA Jetson
 * Hardware Acceleration in the WebRTC Framework

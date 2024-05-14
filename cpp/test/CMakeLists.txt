@@ -1,9 +1,19 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.16)
 
-project(webrtc_lib_link_test) #Project name
+project(sample_build) #Project name
 
-# set(CMAKE_C_COMPILER ${CMAKE_SOURCE_DIR}/../src/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
-# set(CMAKE_CXX_COMPILER ${CMAKE_SOURCE_DIR}/../src/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
+# Add the missing find_package(Threads REQUIRED) command
+find_package(Threads REQUIRED)
+find_package(X11 REQUIRED)
+
+set(webrtc_DIRS ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
+set(webrtc_BUILD_DIRS ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
+
+#
+# https://libcxx.llvm.org/UsingLibcxx.html#using-a-custom-built-libc
+#
+set(CMAKE_C_COMPILER ${webrtc_DIRS}/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
+set(CMAKE_CXX_COMPILER ${webrtc_DIRS}/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
 # set(CMAKE_LINKER ${CMAKE_SOURCE_DIR}/../src/third_party/llvm-build/Release+Asserts/bin/ld.lld) # Set linker to "clang++"
 # set(CMAKE_CXX_LINK_EXECUTABLE "<CMAKE_LINKER>  <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>")
 # set(CMAKE_CXX_LINK_FLAGS " -L${CMAKE_SOURCE_DIR}/../src/out/Default/obj/ -lwebrtc -Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=${CMAKE_SOURCE_DIR}/../src/build/linux/debian_bullseye_amd64-sysroot -rdynamic -pie -Wl,--disable-new-dtags")
@@ -23,26 +33,107 @@ set(CMAKE_CXX_STANDARD_REQUIRED 17) #setting C++
 # -Wl,-rpath,<install>/lib          \
 # -lc++                             \
 # test.cpp ")
+
+# set (CMAKE_CXX_FLAGS " -nostdinc++  -Wl,--as-needed -nostdlib++  -isystem${webrtc_DIRS}/third_party/libc++/src/include -isystem${webrtc_DIRS}/third_party/libc++abi/src/include")
+# set(CMAKE_C_FLAGS)
+# set(CMAKE_CXX_FLAGS "-Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -std=c++17 -Wno-trigraphs -gsimple-template-names -fno-exceptions -fno-rtti -nostdinc++ -isystem${webrtc_DIRS}/third_party/libc++/src/include -isystem${webrtc_DIRS}/third_party/libc++abi/src/include --sysroot=${webrtc_DIRS}/build/linux/debian_bullseye_amd64-sysroot -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual")
+# set(CMAKE_EXE_LINKER_FLAGS "-Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=${webrtc_DIRS}/build/linux/debian_bullseye_amd64-sysroot")
+# set(CMAKE_CXX_FLAGS "-Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -std=c++17 -Wno-trigraphs -gsimple-template-names -fno-exceptions -fno-rtti -nostdinc++ -isystem${webrtc_DIRS}/third_party/libc++/src/include -isystem${webrtc_DIRS}/third_party/libc++abi/src/include --sysroot=${webrtc_DIRS}/build/linux/debian_bullseye_amd64-sysroot -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual")
+# set(CMAKE_EXE_LINKER_FLAGS "-Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=${webrtc_DIRS}/build/linux/debian_bullseye_amd64-sysroot")
 #including header files directory
 include_directories(
-  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src
-  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/third_party/abseil-cpp
-  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/buildtools/third_party/libc++
-  ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/third_party/libyuv/include
+  ${webrtc_DIRS}
+  ${webrtc_DIRS}/third_party/abseil-cpp
+  ${webrtc_DIRS}/buildtools/third_party/libc++
+  ${webrtc_DIRS}/third_party/libyuv/include
 )
 
-# Add the missing find_package(Threads REQUIRED) command
-find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
-
 add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Custom/obj/libwebrtc.a)
+set(webrtc_BUILD_DIRS ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIRS}/obj/libwebrtc.a)
+
+file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/*.o)
+file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
+set(PREBUILT_OBJS ${LIBCPP_OBJS} ${LIBCPPABI_OBJS})
+
+# set(PREBUILT_OBJS ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/algorithm.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/any.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/atomic.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/barrier.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/bind.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/charconv.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/chrono.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/condition_variable.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/condition_variable_destructor.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/error_category.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/exception.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/directory_iterator.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/filesystem_error.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/operations.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/path.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/functional.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/future.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/hash.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/ios.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/ios.instantiations.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/iostream.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/legacy_pointer_safety.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/locale.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/memory.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/mutex.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/mutex_destructor.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/new_handler.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/new_helpers.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/optional.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/random.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/random_shuffle.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/regex.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/d2fixed.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/d2s.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/f2s.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/shared_mutex.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/stdexcept.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/string.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/strstream.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/system_error.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/thread.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/typeinfo.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/valarray.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/variant.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/vector.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/verbose_abort.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/new.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/directory_entry.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++/filesystem_clock.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/abort_message.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_aux_runtime.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_default_handlers.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_exception.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_exception_storage.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_handlers.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_personality.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_vector.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_virtual.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/fallback_malloc.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/private_typeinfo.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/stdlib_exception.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/stdlib_stdexcept.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/stdlib_typeinfo.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_guard.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_demangle.o
+#                   ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi/cxa_thread_atexit.o
+#                   # ${webrtc_BUILD_DIRS}/obj/libwebrtc.a || ${webrtc_BUILD_DIRS}/obj/build/config/executable_deps.stamp ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++/libc++.stamp ${webrtc_BUILD_DIRS}/obj/buildtools/third_party/libc++abi/libc++abi.stamp
+# )
+
+set_source_files_properties(${PREBUILT_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
 #building target executable
-add_executable(webrtc_lib_link_test webrtc_lib_link_test.cc)
+add_executable(webrtc_lib_link_test webrtc_lib_link_test.cc ${PREBUILT_OBJS})
+
+# target_compile_features(webrtc_lib_link_test PUBLIC cxx_std_17)
 
 # Disable using the install rpath
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 # set(CMAKE_SKIP_BUILD_PATH FALSE)
 # set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
@@ -51,15 +142,30 @@ target_link_directories( webrtc_lib_link_test PUBLIC
     # ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Custom/obj/
 )
 
+target_compile_definitions(
+  webrtc_lib_link_test PUBLIC
+  _LIBCPP_ENABLE_SAFE_MODE=1
+  _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+  _LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS
+  CR_LIBCXX_REVISION=7cf98622abaf832e2d4784889ebc69d5b6fde4d8
+  WEBRTC_POSIX
+  WEBRTC_LINUX
+)
+
+target_link_options(
+  webrtc_lib_link_test PUBLIC
+  -Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=${webrtc_DIRS}/build/linux/debian_bullseye_amd64-sysroot
+)
+
+target_compile_options(
+  webrtc_lib_link_test PUBLIC
+  -Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -std=c++17 -Wno-trigraphs -gsimple-template-names -fno-exceptions -fno-rtti -nostdinc++ -isystem${webrtc_DIRS}/third_party/libc++/src/include -isystem${webrtc_DIRS}/third_party/libc++abi/src/include --sysroot=${webrtc_DIRS}/build/linux/debian_bullseye_amd64-sysroot -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual
+)
+
 target_link_libraries(
     webrtc_lib_link_test PUBLIC
     webrtc
     ${CMAKE_THREAD_LIBS_INIT} # Add the Threads library
     ${X11_LIBRARIES} # Add the X11 library
     dl
-)
-target_compile_definitions(
-  webrtc_lib_link_test PUBLIC
-  WEBRTC_POSIX
-  WEBRTC_LINUX
 )
