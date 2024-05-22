@@ -118,10 +118,51 @@ apt-get install libc++abi-11-dev libc++-10-dev
 #### `datachannel`
 
 ### NVIDIA Jetson on `d0c86830d0`
-#### `clan v17`
 * Hardware Acceleration in the WebRTC Framework
   * https://docs.nvidia.com/jetson/archives/r36.3/DeveloperGuide/SD/HardwareAccelerationInTheWebrtcFramework.html
   * https://developer.nvidia.com/embedded/jetson-linux-r363
 * commit id `d0c86830d00d6aa4608cd6f9970352e583f16308`
 
+#### install `clan v17`
+```
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 17
+```
+#### WebRTC Native Source Download for `libcxx`
+```
+git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+
+export PATH=/path/to/depot_tools:$PATH
+```
+```
+mkdir webrtc-checkout
+cd webrtc-checkout
+fetch --nohooks webrtc    // about 10 minutes
+gclient sync              // about 5 minutes
+```
+* checkout the milestone `119`
+```
+cd src
+git checkout d0c86830d00d6aa4608cd6f9970352e583f16308
+gclient sync
+```
+#### build `webRTC` (Optional)
+* https://github.com/CoatiSoftware/Sourcetrail/issues/852
+```
+gn gen out/Default --args="clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false "
+ninja -C out/Default webrtc
+```
+#### Download NVIDIA Precompiled `libwebrtc.a`
+* download `WebRTC_R36.3.0_aarch64.tbz2` from https://developer.nvidia.com/embedded/jetson-linux-r363
+```
+mkdir precompiled
+tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./precompiled
+```
 #### `test_nv_jetson`
+
+
+#### `datachannel_nv_jetson`
+```
+sudo apt-get install picojson-dev
+```
