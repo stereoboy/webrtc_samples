@@ -165,7 +165,11 @@ target_compile_options(
 target_link_libraries(
     webrtc_lib_link_test PUBLIC
     webrtc
-    ${CMAKE_THREAD_LIBS_INIT} # Add the Threads library
     ${X11_LIBRARIES} # Add the X11 library
     dl
 )
+if (CMAKE_THREAD_LIBS_INIT)
+    target_link_libraries(webrtc_lib_link_test PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+else()
+    target_link_libraries(webrtc_lib_link_test PUBLIC pthread)
+endif()
