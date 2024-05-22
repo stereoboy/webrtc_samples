@@ -4,7 +4,6 @@ project(peer_datachannel) #Project name
 
 # Add the missing find_package(Threads REQUIRED) command
 find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
 
 set(webrtc_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
 set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
@@ -18,14 +17,14 @@ set(CMAKE_CXX_STANDARD 17) #setting C++ 20 standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #setting C++
 
 include_directories(
-  ${webrtc_DIR}
+  ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
   ${webrtc_DIR}/third_party/abseil-cpp
   ${webrtc_DIR}/buildtools/third_party/libc++
   ${webrtc_DIR}/third_party/libyuv/include
 )
 
 add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/libwebrtc.a)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/libwebrtc.a)
 
 file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
@@ -83,7 +82,6 @@ target_link_options(
 target_link_libraries(
     peer_datachannel PUBLIC
     webrtc
-    ${X11_LIBRARIES} # Add the X11 library
     dl
 )
 if (CMAKE_THREAD_LIBS_INIT)

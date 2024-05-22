@@ -45,14 +45,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON) #setting C++
 # set(CMAKE_EXE_LINKER_FLAGS "-Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot")
 #including header files directory
 include_directories(
-  ${webrtc_DIR}
+  ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
   ${webrtc_DIR}/third_party/abseil-cpp
   ${webrtc_DIR}/buildtools/third_party/libc++
   ${webrtc_DIR}/third_party/libyuv/include
 )
 
 add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/libwebrtc.a)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/libwebrtc.a)
 
 file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
