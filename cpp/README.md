@@ -16,10 +16,19 @@
   * https://github.com/mozilla/libwebrtc
 * How To Compile Native WebRTC Library from Source for Android
   * https://medium.com/@abdularis/how-to-compile-native-webrtc-from-source-for-android-d0bac8e4c933
-#### clang
+
+### clang
+* Install clang on Ubuntu
+  * https://apt.llvm.org/
+  * https://ubuntuhandbook.org/index.php/2023/09/how-to-install-clang-17-or-16-in-ubuntu-22-04-20-04/
+  ```
+  wget https://apt.llvm.org/llvm.sh
+  chmod +x llvm.sh
+  sudo ./llvm.sh <version number>
+  ```
 * https://libcxx.llvm.org/UsingLibcxx.html#using-a-custom-built-libc
 
-### Source Download
+### WebRTC Native Source Download
 ```
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
@@ -101,8 +110,18 @@ apt-get install libc++abi-11-dev libc++-10-dev
     <img src="../../docs/screenshots/2024_05_14_screenshot_00.png" width="640">
   </p>
 
-### NVIDIA Jetson
+
+### Samples on M119
+#### `clang v18`
+#### `test`
+
+#### `datachannel`
+
+### NVIDIA Jetson on `d0c86830d0`
+#### `clan v17`
 * Hardware Acceleration in the WebRTC Framework
   * https://docs.nvidia.com/jetson/archives/r36.3/DeveloperGuide/SD/HardwareAccelerationInTheWebrtcFramework.html
   * https://developer.nvidia.com/embedded/jetson-linux-r363
 * commit id `d0c86830d00d6aa4608cd6f9970352e583f16308`
+
+#### `test_nv_jetson`

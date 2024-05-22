@@ -9,8 +9,10 @@ find_package(X11 REQUIRED)
 set(webrtc_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
 set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
 
-set(CMAKE_C_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
-set(CMAKE_CXX_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
+# set(CMAKE_C_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
+# set(CMAKE_CXX_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
+set(CMAKE_C_COMPILER clang-17) # Set C compiler to "clang"
+set(CMAKE_CXX_COMPILER clang++-17) # Set C++ compiler to "clang++"
 
 set(CMAKE_CXX_STANDARD 17) #setting C++ 20 standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #setting C++
@@ -70,7 +72,9 @@ target_compile_options(
 
 target_link_options(
   peer_datachannel PUBLIC
-  -Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
+  -fuse-ld=lld-17
+  -Werror
+  -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
   -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
   -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++
   # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot

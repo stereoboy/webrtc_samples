@@ -12,10 +12,10 @@ set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
 #
 # https://libcxx.llvm.org/UsingLibcxx.html#using-a-custom-built-libc
 #
-set(CMAKE_C_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
-set(CMAKE_CXX_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
-# set(CMAKE_C_COMPILER clang) # Set C compiler to "clang"
-# set(CMAKE_CXX_COMPILER clang++) # Set C++ compiler to "clang++"
+# set(CMAKE_C_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
+# set(CMAKE_CXX_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
+set(CMAKE_C_COMPILER clang-17) # Set C compiler to "clang"
+set(CMAKE_CXX_COMPILER clang++-17) # Set C++ compiler to "clang++"
 
 # set(CMAKE_LINKER ${CMAKE_SOURCE_DIR}/../src/third_party/llvm-build/Release+Asserts/bin/ld.lld) # Set linker to "clang++"
 # set(CMAKE_CXX_LINK_EXECUTABLE "<CMAKE_LINKER>  <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>")
@@ -167,7 +167,9 @@ target_compile_options(
 
 target_link_options(
   webrtc_lib_link_test PUBLIC
-  -Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
+  -fuse-ld=lld-17
+  -Werror
+  -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
   -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
   -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++
   # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
