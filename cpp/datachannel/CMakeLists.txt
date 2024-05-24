@@ -4,7 +4,6 @@ project(peer_datachannel) #Project name
 
 # Add the missing find_package(Threads REQUIRED) command
 find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
 
 set(webrtc_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
 set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
@@ -79,7 +78,6 @@ target_link_options(
 target_link_libraries(
     peer_datachannel PUBLIC
     webrtc
-    ${X11_LIBRARIES} # Add the X11 library
     dl
 )
 if (CMAKE_THREAD_LIBS_INIT)
