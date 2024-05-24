@@ -10,8 +10,8 @@ add_subdirectory(./lib/socket.io-client-cpp)
 set(webrtc_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
 set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Release)
 
-set(CMAKE_C_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang) # Set C compiler to "clang"
-set(CMAKE_CXX_COMPILER ${webrtc_DIR}/third_party/llvm-build/Release+Asserts/bin/clang++) # Set C++ compiler to "clang++"
+set(CMAKE_C_COMPILER clang-18) # Set C compiler to "clang"
+set(CMAKE_CXX_COMPILER clang++-18) # Set C++ compiler to "clang++"
 
 # set(CMAKE_CXX_STANDARD 20) // cannot use 20 for socket.io-client-cpp, error: no template named 'result_of' in namespace 'std'
 set(CMAKE_CXX_STANDARD 17)
@@ -77,7 +77,7 @@ target_compile_options(
 
 target_link_options(
   peer_datachannel_client PUBLIC
-  -Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
+  -Werror -fuse-ld=lld-18 -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
   -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
   -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++
   # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
