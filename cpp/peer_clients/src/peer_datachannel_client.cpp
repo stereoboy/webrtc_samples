@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 
     PeerDataChannelClient client;
 
-    client.init();
+    client.init_signaling();
 
     logger->info("Connecting to {}:{}", absl::GetFlag(FLAGS_server), absl::GetFlag(FLAGS_port));
     client.connect_sync(absl::GetFlag(FLAGS_server), absl::GetFlag(FLAGS_port));
@@ -61,5 +61,6 @@ int main(int argc, char* argv[]) {
     }
 
     rtc::CleanupSSL();
+    client.deinit_signaling();
     return 0;
 }
