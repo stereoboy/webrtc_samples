@@ -1,3 +1,26 @@
+##
+### Signaling Server
+```
+cd python3
+python3 signaling_server.py
+```
+
+### Peer DataChannel Client
+```
+mkdir build
+cd build
+cmake ..
+make -j
+```
+* Host 1
+```
+./peer_datachannel_client
+```
+* Host 2
+```
+./peer_datachannel_client
+```
+
 ## Chromium WebRTC Implementation
 ### References
 * Official Development Document
