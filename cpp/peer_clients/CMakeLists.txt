@@ -8,6 +8,7 @@ find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 
 add_subdirectory(./lib/socket.io-client-cpp)
+add_subdirectory(./lib/abseil-cpp)
 
 set(webrtc_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
 set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Release)
@@ -23,7 +24,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(
   ${webrtc_DIR}
-  ${webrtc_DIR}/third_party/abseil-cpp
+  # ${webrtc_DIR}/third_party/abseil-cpp
   ${webrtc_DIR}/buildtools/third_party/libc++
   ${webrtc_DIR}/third_party/libyuv/include
 )
@@ -33,7 +34,12 @@ set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/ob
 
 file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
-set(PREBUILT_OBJS ${LIBCPP_OBJS} ${LIBCPPABI_OBJS})
+# file(GLOB_RECURSE LIBABSL_OBJS ${webrtc_BUILD_DIR}/obj/third_party/abseil-cpp/absl/*.o)
+set(PREBUILT_OBJS
+    ${LIBCPP_OBJS}
+    ${LIBCPPABI_OBJS}
+    # ${LIBABSL_OBJS}
+)
 
 set_source_files_properties(${PREBUILT_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
@@ -100,6 +106,9 @@ target_link_libraries(
     sioclient
     spdlog::spdlog
     fmt::fmt
+    absl::flags
+    absl::flags_parse
+    absl::flags_usage
 )
 if (CMAKE_THREAD_LIBS_INIT)
     target_link_libraries(peer_datachannel_client PUBLIC ${CMAKE_THREAD_LIBS_INIT})

@@ -12,8 +12,19 @@
 
 #include "peer_client.hpp"
 
+#include <absl/flags/flag.h>
+#include <absl/flags/parse.h>
+#include <absl/flags/usage.h>
 
-class PeerDataChannelClient : public PeerClient {
+
+ABSL_FLAG(std::string, server, "localhost", "The server to connect to.");
+ABSL_FLAG(int,
+          port,
+          5000,
+          "The port on which the server is listening.");
+
+class PeerDataChannelClient : public PeerClient,
+                              public webrtc::PeerConnectionObserver {
 
 public:
     PeerDataChannelClient(): PeerClient("DataChannelClient") {
@@ -23,6 +34,11 @@ public:
 
 int main(int argc, char* argv[]) {
     auto logger = spdlog::stdout_color_mt("PeerDataChannel");
+    absl::SetProgramUsageMessage(
+      "Example usage: ./peer_datachanenl_client --server=localhost --port=5000\n");
+    absl::ParseCommandLine(argc, argv);
+
+    logger->info("Starting PeerDataChannelClient");
     // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
 
     // sio::client sio_client();
@@ -31,7 +47,8 @@ int main(int argc, char* argv[]) {
 
     client.init();
 
-    client.connect_sync("localhost", 5000);
+    logger->info("Connecting to {}:{}", absl::GetFlag(FLAGS_server), absl::GetFlag(FLAGS_port));
+    client.connect_sync(absl::GetFlag(FLAGS_server), absl::GetFlag(FLAGS_port));
 
     rtc::InitializeSSL();
 
