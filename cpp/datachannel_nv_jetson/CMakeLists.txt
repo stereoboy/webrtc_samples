@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 project(peer_datachannel) #Project name
 
+option(USE_PREBUILT_WEBRTC "use prebuilt NVIDIA provided library" ON)
+
 # Add the missing find_package(Threads REQUIRED) command
 find_package(Threads REQUIRED)
 
@@ -17,14 +19,24 @@ set(CMAKE_CXX_STANDARD 17) #setting C++ 20 standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #setting C++
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
   ${webrtc_DIR}/third_party/abseil-cpp
   ${webrtc_DIR}/buildtools/third_party/libc++
   ${webrtc_DIR}/third_party/libyuv/include
 )
 
+if (USE_PREBUILT_WEBRTC)
+include_directories(
+  ${CMAKE_SOURCE_DIR}/../prebuilt/webrtc_headers
+)
 add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/libwebrtc.a)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../prebuilt/libwebrtc.a)
+else()
+include_directories(
+  ${webrtc_DIR}
+)
+add_library(webrtc STATIC IMPORTED)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/libwebrtc.a)
+endif()
 
 file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)

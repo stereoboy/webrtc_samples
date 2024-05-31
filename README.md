@@ -179,13 +179,24 @@ ninja -C out/Default webrtc
 #### Download NVIDIA Precompiled `libwebrtc.a`
 * download `WebRTC_R36.3.0_aarch64.tbz2` from https://developer.nvidia.com/embedded/jetson-linux-r363
 ```
-mkdir precompiled
-tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./precompiled
+mkdir prebuilt
+tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./prebuilt
 ```
 #### `test_nv_jetson`
-
+```
+cmake -DUSE_PREBUILT_WEBRTC=ON .. && make -j
+```
+```
+cmake -DUSE_PREBUILT_WEBRTC=OFF .. && make -j
+```
 
 #### `datachannel_nv_jetson`
 ```
 sudo apt-get install picojson-dev
+```
+```
+cmake -DUSE_PREBUILT_WEBRTC=ON .. && make -j
+```
+```
+cmake -DUSE_PREBUILT_WEBRTC=OFF .. && make -j
 ```

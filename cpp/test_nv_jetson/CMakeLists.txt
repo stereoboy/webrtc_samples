@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(sample_build) #Project name
 
+option(USE_PREBUILT_WEBRTC "use prebuilt NVIDIA provided library" ON)
+
 # Add the missing find_package(Threads REQUIRED) command
 find_package(Threads REQUIRED)
 find_package(X11 REQUIRED)
@@ -44,16 +46,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON) #setting C++
 # set(CMAKE_CXX_FLAGS "-Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -std=c++17 -Wno-trigraphs -gsimple-template-names -fno-exceptions -fno-rtti -nostdinc++ -isystem${webrtc_DIR}/third_party/libc++/src/include -isystem${webrtc_DIR}/third_party/libc++abi/src/include --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual")
 # set(CMAKE_EXE_LINKER_FLAGS "-Werror -fuse-ld=lld -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs -Wl,--as-needed -nostdlib++ --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot")
 #including header files directory
+
 include_directories(
-  ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
   ${webrtc_DIR}/third_party/abseil-cpp
   ${webrtc_DIR}/buildtools/third_party/libc++
   ${webrtc_DIR}/third_party/libyuv/include
 )
 
+if (USE_PREBUILT_WEBRTC)
+include_directories(
+  ${CMAKE_SOURCE_DIR}/../prebuilt/webrtc_headers
+)
 add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/libwebrtc.a)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../prebuilt/libwebrtc.a)
+else()
+include_directories(
+  ${webrtc_DIR}
+)
 
+add_library(webrtc STATIC IMPORTED)
+set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/libwebrtc.a)
+endif()
 file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
 set(PREBUILT_OBJS ${LIBCPP_OBJS} ${LIBCPPABI_OBJS})
