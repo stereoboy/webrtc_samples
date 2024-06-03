@@ -51,6 +51,45 @@ make -j
   ```
 * https://libcxx.llvm.org/UsingLibcxx.html#using-a-custom-built-libc
 
+### Building libc++
+* https://libcxx.llvm.org/BuildingLibcxx.html
+* Find right version of clang
+
+
+```
+git clone https://github.com/llvm/llvm-project.git
+git checkout cf31d0eca85f4f5b273dd1ad8f76791ff726c28f # matching chrome-libcxx
+mkdir build
+cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"  -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 \
+-D_LIBCPP_ABI_NAMESPACE=__Cr -D_LIBCPP_ABI_VERSION=2 \
+<!-- -D_LIBCPP_PSTL_CPU_BACKEND_THREAD \
+-D_LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS \
+-D_LIBCPP_PSTL_CPU_BACKEND_THREAD \
+-D_LIBCPP_NO_AUTO_LINK \
+-D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES \
+-D_LIBCPP_NO_ABI_TAG \
+-D_LIBCPP_CHAR_TRAITS_REMOVE_BASE_SPECIALIZATION -->
+
+ninja -C build cxx cxxabi unwind
+```
+```diff
+diff --git a/libcxx/include/__config_site.in b/libcxx/include/__config_site.in
+index c85cbcd02c44..f7096368d78f 100644
+--- a/libcxx/include/__config_site.in
++++ b/libcxx/include/__config_site.in
+@@ -9,8 +9,8 @@
+ #ifndef _LIBCPP___CONFIG_SITE
+ #define _LIBCPP___CONFIG_SITE
+
+-#cmakedefine _LIBCPP_ABI_VERSION @_LIBCPP_ABI_VERSION@
+-#cmakedefine _LIBCPP_ABI_NAMESPACE @_LIBCPP_ABI_NAMESPACE@
++#cmakedefine _LIBCPP_ABI_VERSION 2
++#cmakedefine _LIBCPP_ABI_NAMESPACE __Cr
+ #cmakedefine _LIBCPP_ABI_FORCE_ITANIUM
+ #cmakedefine _LIBCPP_ABI_FORCE_MICROSOFT
+ #cmakedefine _LIBCPP_HAS_NO_THREADS
+
+```
 ### WebRTC Native Source Download
 ```
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git

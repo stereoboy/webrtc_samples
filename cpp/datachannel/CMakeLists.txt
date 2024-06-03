@@ -68,17 +68,21 @@ set_source_files_properties(${PREBUILT_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GEN
 #     # ${webrtc_DIR}/third_party/abseil-cpp
 # )
 
-# add_library(c++_custom STATIC IMPORTED)
+# add_library(c++_custom INTERFACE IMPORTED)
 # set_target_properties(c++_custom PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../llvm-project/build/lib/libc++.so)
 
-# add_library(c++abi_custom STATIC IMPORTED)
+# add_library(c++abi_custom INTERFACE IMPORTED)
 # set_target_properties(c++abi_custom PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../llvm-project/build/lib/libc++abi.so)
 
 
-#building target executable
-add_executable(peer_datachannel peer_datachannel.cpp ${PREBUILT_OBJS})
-# add_executable(peer_datachannel peer_datachannel.cpp)
 
+#building target executable
+# add_executable(peer_datachannel peer_datachannel.cpp ${PREBUILT_OBJS})
+add_executable(peer_datachannel peer_datachannel.cpp)
+
+target_link_directories(peer_datachannel PUBLIC
+${CMAKE_SOURCE_DIR}/../llvm-project/build/lib/
+)
 target_include_directories(peer_datachannel PUBLIC
 # ${CMAKE_SOURCE_DIR}/../llvm-project/build/include/c++/v1
 )
@@ -111,10 +115,10 @@ target_compile_definitions(
 target_compile_options(
   peer_datachannel PUBLIC
   -Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -std=c++17 -Wno-trigraphs -gsimple-template-names -fno-exceptions -fno-rtti
-  # -nostdinc++
-  -stdlib=libc++
-  # -isystem${webrtc_DIR}/third_party/libc++/src/include
-  # -isystem${webrtc_DIR}/third_party/libc++abi/src/include
+  -nostdinc++
+  # -stdlib=libc++
+  -isystem${webrtc_DIR}/third_party/libc++/src/include
+  -isystem${webrtc_DIR}/third_party/libc++abi/src/include
   # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
   -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual
 )
@@ -124,8 +128,8 @@ target_link_options(
   -Werror -fuse-ld=lld-18 -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
   -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
   -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs
-  # -Wl,--as-needed -nostdlib++
-  -Wl,--as-needed -stdlib=libc++
+  -Wl,--as-needed -nostdlib++
+  # -Wl,--as-needed -stdlib=libc++
   # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
 )
 
@@ -133,6 +137,8 @@ target_link_libraries(
     peer_datachannel PUBLIC
     webrtc
     dl
+    c++
+    c++abi
 )
 if (CMAKE_THREAD_LIBS_INIT)
     target_link_libraries(peer_datachannel PUBLIC ${CMAKE_THREAD_LIBS_INIT})
