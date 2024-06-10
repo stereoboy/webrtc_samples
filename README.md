@@ -60,17 +60,28 @@ make -j
 git clone https://github.com/llvm/llvm-project.git
 git checkout cf31d0eca85f4f5b273dd1ad8f76791ff726c28f # matching chrome-libcxx
 mkdir build
-cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"  -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 \
+```
+```
+cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"  -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DLIBCXX_ABI_NAMESPACE=__Cr \
+-DLIBCXX_ABI_UNSTABLE=ON \
+-DLIBCXX_ENABLE_VENDOR_AVAILABILITY_ANNOTATIONS=OFF \
+-DLIBCXX_PSTL_CPU_BACKEND="std_thread" \
+```
+```
+-DLIBCXX_ENABLE_STD_MODULES=OFF \ # https://en.cppreference.com/w/cpp/language/modules
+```
+```
+ninja -C build cxx cxxabi unwind
+```
+#### Backup
+```
 -D_LIBCPP_ABI_NAMESPACE=__Cr -D_LIBCPP_ABI_VERSION=2 \
-<!-- -D_LIBCPP_PSTL_CPU_BACKEND_THREAD \
--D_LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS \
--D_LIBCPP_PSTL_CPU_BACKEND_THREAD \
+-D_LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS=ON \
+-D_LIBCPP_PSTL_CPU_BACKEND_THREAD=ON \
 -D_LIBCPP_NO_AUTO_LINK \
 -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES \
 -D_LIBCPP_NO_ABI_TAG \
--D_LIBCPP_CHAR_TRAITS_REMOVE_BASE_SPECIALIZATION -->
-
-ninja -C build cxx cxxabi unwind
+-D_LIBCPP_CHAR_TRAITS_REMOVE_BASE_SPECIALIZATION
 ```
 ```diff
 diff --git a/libcxx/include/__config_site.in b/libcxx/include/__config_site.in
@@ -239,3 +250,15 @@ cmake -DUSE_PREBUILT_WEBRTC=ON .. && make -j
 ```
 cmake -DUSE_PREBUILT_WEBRTC=OFF .. && make -j
 ```
+
+
+### Libraries
+#### `abseil-cpp`
+* latest version
+* ~~`6ab667fd8deba75443fdc0d5c5bbf4588431f1b4` to match webrtc M119's abseil-cpp~~
+
+#### `spdlog`
+* `v1.9.2` for ubuntu 22.04
+
+#### `socket.io-client`
+* latest version

@@ -4,7 +4,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <fmt/core.h>
+// #include <fmt/core.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <sio_client.h>
