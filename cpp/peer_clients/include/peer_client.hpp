@@ -10,14 +10,25 @@
 #include <sio_client.h>
 
 
+
 class PeerClient {
+
+public:
+    enum class PeerType {
+        Undefined = 0,
+        Caller,
+        Callee,
+    };
 
 protected:
     std::string                     name_;
     std::mutex                      msg_mutex_;
     std::condition_variable_any     msg_cond_;
     std::atomic_bool                connected_ = {false};
+
     sio::client                     sio_client_;
+
+    PeerType                        type_ = PeerType::Undefined;
 
     std::shared_ptr<spdlog::logger> logger_ = nullptr;
 
@@ -28,7 +39,7 @@ public:
         this->name_ = name;
     }
 
-    ~PeerClient() {
+    virtual ~PeerClient() {
 
     }
 
@@ -38,7 +49,7 @@ public:
         msg_cond_.wait(msg_mutex_);
     }
 
-    void init_signaling() {
+    virtual void init_signaling() {
         logger_->info("Initializing {}", name_);
         sio_client_.set_reconnect_attempts(0);
         sio_client_.set_open_listener(std::bind(&PeerClient::on_connected, this));
@@ -46,27 +57,33 @@ public:
         sio_client_.set_fail_listener(std::bind(&PeerClient::on_fail, this));
     }
 
-    void deinit_signaling() {
-        msg_cond_.wait(msg_mutex_);
+    virtual void deinit_signaling() {
+        // msg_cond_.wait(msg_mutex_);
         sio_client_.sync_close();
         sio_client_.clear_con_listeners();
     }
 
-    void on_connected() {
+    virtual void on_connected() {
         // std::unique_lock<std::mutex> lock(msg_mutex_);
         logger_->info("Connected to Signaling Server");
+        connected_ = true;
         msg_cond_.notify_all();
     }
 
-    void on_close(sio::client::close_reason const& reason) {
+    virtual void on_close(sio::client::close_reason const& reason) {
         std::unique_lock<std::mutex> lock(msg_mutex_);
         logger_->info("Connection closed: {}", reason);
+        connected_ = false;
     }
 
-    void on_fail() {
+    virtual void on_fail() {
         std::unique_lock<std::mutex> lock(msg_mutex_);
         logger_->error("Connection failed: {}");
         msg_cond_.notify_all();
+    }
+
+    virtual bool is_connected() {
+        return connected_;
     }
 };
 

@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger('Signaling.Server')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s:[%(levelname)s][%(process)d][%(name)s] - %(funcName)s:%(lineno)d - %(message)s'))
+handler.setFormatter(logging.Formatter(fmt='%(asctime)s:[%(levelname)s][0x%(thread)X][%(name)s] (%(funcName)s:%(lineno)d) %(message)s'))
 logger.addHandler(handler)
 # logging.basicConfig(level=logging.WARNING, format='%(asctime)s:[%(levelname)s][%(process)d][%(name)s] - %(funcName)s:%(lineno)d - %(message)s')
 
@@ -22,8 +22,16 @@ app = socketio.WSGIApp(sio, static_files={
     '/': {'content_type': 'text/html', 'filename': 'index.html'}
 })
 
+Peer = collections.namedtuple('Peer', ['sid', 'host', 'port', 'room', 'ice', 'sdp'])
+
+peers = []
+
+PEER_DATACHANNEL='peer_datachannel'
+flag_peer_connection = False
+
 @sio.on('connect')
 def connect(sid, environ):
+    global flag_peer_connection
     global count, elapsed_time_queue, start
     logger.info('>>> connect {}'.format(sid))
     for k, v in environ.items():
@@ -32,6 +40,64 @@ def connect(sid, environ):
     count = 0
     elapsed_time_queue = collections.deque(maxlen=100)
     start = time.time()
+
+    if flag_peer_connection:
+        logger.error('Peer connection already established. Additional connections is not allowed.')
+        sio.disconnect(sid)
+        return
+
+    p = Peer(sid=sid, host=environ['REMOTE_ADDR'], port=environ['REMOTE_PORT'], room=PEER_DATACHANNEL, ice=None, sdp=None)
+    peers.append(p)
+
+    sio.enter_room(sid, PEER_DATACHANNEL)
+
+    if len(peers) == 1:
+        logger.info('>>> peer_#0 waiting for another peer')
+        res = sio.emit('set-as-caller', to=sid)
+        logger.info('\t - {}'.format(res))
+    elif len(peers) == 2:
+        logger.info('>>> peer_#1 arrived. Ready to test P2P.')
+        res = sio.emit('set-as-callee', to=sid)
+        logger.info('\t - {}'.format(res))
+        flag_peer_connection = True
+        logger.info('{}'.format(peers))
+
+    sio.emit('ready', room=PEER_DATACHANNEL)
+
+
+@sio.on('query-peer-type')
+def query_peer_type(sid, data):
+
+    if sid == peers[0].sid:
+        # res = sio.call('set-as-caller', "dummy", to=sid)
+        # logger.info('{}'.format(res))
+        logger.info("caller")
+        return "caller"
+    elif sid == peers[1].sid:
+        # res = sio.call('set-as-callee', "dummy", to=sid)
+        # logger.info('{}'.format(res))
+        logger.info("callee")
+        return "callee"
+    else:
+        logger.error('Unknown peer: {}'.format(sid))
+        return "unknown"
+
+@sio.on('ice')
+def on_ice(sid, data):
+    sio.emit('start', msg, room=PEER_DATACHANNEL, skip_sid=sid)
+    pass
+
+@sio.on('offer')
+def on_sdp(sid, sdp):
+    logger.info("SDP:\n{}".format(sdp))
+    sio.emit('offer', sdp, room=PEER_DATACHANNEL, skip_sid=sid)
+    return "ok"
+
+@sio.on('answer')
+def on_sdp(sid, sdp):
+    logger.info("SDP:\n{}".format(sdp))
+    sio.emit('answer', sdp, room=PEER_DATACHANNEL, skip_sid=sid)
+    return "ok"
 
 @sio.on('message')
 def on_message(sid, data):
