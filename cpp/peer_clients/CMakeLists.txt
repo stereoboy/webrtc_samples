@@ -40,7 +40,7 @@ add_subdirectory(./lib/socket.io-client-cpp)
 set(SPDLOG_BUILD_SHARED ON)
 add_subdirectory(./lib/spdlog)
 # add_subdirectory(./lib/fmt)
-add_subdirectory(./lib/abseil-cpp/)
+# add_subdirectory(./lib/abseil-cpp/)
 
 # set(CMAKE_CXX_STANDARD 20) // cannot use 20 for socket.io-client-cpp, error: no template named 'result_of' in namespace 'std'
 set(CMAKE_CXX_STANDARD 17)
@@ -64,18 +64,18 @@ set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/ob
 
 # file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 # file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
-# file(GLOB_RECURSE LIBABSL_OBJS ${webrtc_BUILD_DIR}/obj/third_party/abseil-cpp/absl/*.o)
-# set(PRECOMPILED_OBJS
-#     ${LIBCPP_OBJS}
-#     ${LIBCPPABI_OBJS}
-#     ${LIBABSL_OBJS}
-# )
+file(GLOB_RECURSE LIBABSL_OBJS ${webrtc_BUILD_DIR}/obj/third_party/abseil-cpp/absl/*.o)
+set(PRECOMPILED_OBJS
+    # ${LIBCPP_OBJS}
+    # ${LIBCPPABI_OBJS}
+    ${LIBABSL_OBJS}
+)
 
 # set_source_files_properties(${PRECOMPILED_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
 # #building target executable
-# add_executable(peer_datachannel_client src/peer_datachannel_client.cpp ${PRECOMPILED_OBJS})
-add_executable(peer_datachannel_client src/peer_datachannel_client.cpp)
+add_executable(peer_datachannel_client src/peer_datachannel_client.cpp ${PRECOMPILED_OBJS})
+# add_executable(peer_datachannel_client src/peer_datachannel_client.cpp)
 
 
 # Disable using the install rpath
@@ -92,7 +92,8 @@ target_include_directories(
     ${llvm_BUILD_DIR}/include/c++/v1
     lib/socket.io-client-cpp/src
     lib/socket.io-client-cpp/lib/asio/asio/include
-    lib/abseil-cpp
+    # lib/abseil-cpp
+    ${webrtc_DIR}/third_party/abseil-cpp
     ${webrtc_DIR}
     include
 )
@@ -151,8 +152,8 @@ target_link_libraries(
     spdlog::spdlog
     # fmt::fmt
 
-    absl::flags_parse
-    absl::flags_usage
+    # absl::flags_parse
+    # absl::flags_usage
 )
 if (CMAKE_THREAD_LIBS_INIT)
     target_link_libraries(peer_datachannel_client PUBLIC ${CMAKE_THREAD_LIBS_INIT})
