@@ -32,15 +32,18 @@ ABSL_FLAG(int,
 
 class DummySetSessionDescriptionObserver
     : public webrtc::SetSessionDescriptionObserver {
- public:
-  static rtc::scoped_refptr<DummySetSessionDescriptionObserver> Create() {
-    return rtc::make_ref_counted<DummySetSessionDescriptionObserver>();
-  }
-  virtual void OnSuccess() { RTC_LOG(LS_INFO) << __FUNCTION__; }
-  virtual void OnFailure(webrtc::RTCError error) {
-    RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
-                     << error.message();
-  }
+public:
+    static rtc::scoped_refptr<DummySetSessionDescriptionObserver> Create() {
+        return rtc::make_ref_counted<DummySetSessionDescriptionObserver>();
+    }
+    virtual void OnSuccess() {
+        RTC_LOG(LS_INFO) << __FUNCTION__;
+        spdlog::info("{}", __PRETTY_FUNCTION__);
+    }
+    virtual void OnFailure(webrtc::RTCError error) {
+        RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": " << error.message();
+        spdlog::info("{}", __PRETTY_FUNCTION__);
+    }
 };
 
 class PeerDataChannelClient : public PeerClient,
