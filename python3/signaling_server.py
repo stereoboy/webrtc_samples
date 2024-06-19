@@ -29,6 +29,17 @@ peers = []
 PEER_DATACHANNEL='peer_datachannel'
 flag_peer_connection = False
 
+def get_counter_sid(sid):
+    # print(peers)
+    # print("sid: {}".format(sid))
+    for p in peers:
+        if p.sid == sid:
+            continue
+        else:
+            # print("p.sid: {}".format(p.sid))
+            return p.sid
+    raise ValueError
+
 @sio.on('connect')
 def connect(sid, environ):
     global flag_peer_connection
@@ -62,7 +73,7 @@ def connect(sid, environ):
         flag_peer_connection = True
         logger.info('{}'.format(peers))
 
-    sio.emit('ready', room=PEER_DATACHANNEL)
+        sio.emit('ready', room=PEER_DATACHANNEL)
 
 
 @sio.on('query-peer-type')
@@ -90,27 +101,27 @@ def on_ice(sid, data):
 @sio.on('offer')
 def on_sdp(sid, sdp):
     logger.info("SDP:\n{}".format(sdp))
-    sio.emit('offer', sdp, room=PEER_DATACHANNEL, skip_sid=sid)
-    return "ok"
+    ret = sio.call('offer', sdp, to=get_counter_sid(sid))
+    return ret
 
 @sio.on('answer')
 def on_sdp(sid, sdp):
     logger.info("SDP:\n{}".format(sdp))
-    sio.emit('answer', sdp, room=PEER_DATACHANNEL, skip_sid=sid)
-    return "ok"
+    ret = sio.call('answer', sdp, to=get_counter_sid(sid))
+    return ret
 
-@sio.on('message')
-def on_message(sid, data):
-    global count, elapsed_time_queue, start
-    logger.debug('>>> \tmessage: len(data)={}'.format(len(data)))
-    end = time.time()
-    elapsed = end - start
-    start = time.time()
-    elapsed_time_queue.append(elapsed)
-    count += 1
-    if count%100 == 0:
-        logger.info("\t{} fps".format(1.0/np.mean(elapsed_time_queue)))
-    return True
+# @sio.on('message')
+# def on_message(sid, data):
+#     global count, elapsed_time_queue, start
+#     logger.debug('>>> \tmessage: len(data)={}'.format(len(data)))
+#     end = time.time()
+#     elapsed = end - start
+#     start = time.time()
+#     elapsed_time_queue.append(elapsed)
+#     count += 1
+#     if count%100 == 0:
+#         logger.info("\t{} fps".format(1.0/np.mean(elapsed_time_queue)))
+#     return True
 
 @sio.on('disconnect')
 def disconnect(sid):

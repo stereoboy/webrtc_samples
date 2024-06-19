@@ -151,21 +151,23 @@ public:
         if (type_ == PeerClient::PeerType::Caller) {
             sio_client_.socket()->emit("offer", msg, [&](sio::message::list const& msg) {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                std::string res = msg[0]->get_string();
-                if (res.compare("ok") == 0) {
+                bool ok = msg[0]->get_map()["ok"]->get_bool();
+                std::string message = msg[0]->get_map()["message"]->get_string();
+            if (ok) {
                     logger_->info("Offer SDP sent successfully");
                 } else {
-                    logger_->error("Offer SDP failed to send: {}", res);
+                    logger_->error("Offer SDP failed to send: {}", message);
                 }
             });
         } else {
             sio_client_.socket()->emit("answer", msg, [&](sio::message::list const& msg) {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                std::string res = msg[0]->get_string();
-                if (res.compare("ok") == 0) {
+                bool ok = msg[0]->get_map()["ok"]->get_bool();
+                std::string message = msg[0]->get_map()["message"]->get_string();
+                if (ok) {
                     logger_->info("Answer SDP sent successfully");
                 } else {
-                    logger_->error("Answer SDP failed to send: {}", res);
+                    logger_->error("Answer SDP failed to send: {}", message);
                 }
             });
         }
@@ -199,7 +201,7 @@ public:
         sio_client_.socket()->on("set-as-caller", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
             {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                logger_->info("{}", name);
+                logger_->info("event={}", name);
                 type_ = PeerClient::PeerType::Caller;
                 sio::message::ptr resp = sio::object_message::create();
                 resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -211,7 +213,7 @@ public:
         sio_client_.socket()->on("set-as-callee", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
             {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                logger_->info("{}", name);
+                logger_->info("event={}", name);
                 type_ = PeerClient::PeerType::Callee;
                 sio::message::ptr resp = sio::object_message::create();
                 resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -223,9 +225,16 @@ public:
         sio_client_.socket()->on("ready", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
             {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                logger_->info("{}", name);
+                logger_->info("event={}", name);
                 if (type_ == PeerClient::PeerType::Caller) {
-                    create_offer();
+                    if (!create_offer()) {
+                        logger_->error("Failed to create Offer");
+                        sio::message::ptr resp = sio::object_message::create();
+                        resp->get_map()["ok"] = sio::bool_message::create(false);
+                        resp->get_map()["message"] = sio::string_message::create("Failed to create Offer");
+                        ack_resp.push(resp);
+                        return;
+                    }
                 }
                 sio::message::ptr resp = sio::object_message::create();
                 resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -237,11 +246,18 @@ public:
         sio_client_.socket()->on("offer", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
             {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                logger_->info("{}", name);
+                logger_->info("event={}", name);
                 if (type_ == PeerClient::PeerType::Callee) {
                     std::string sdp_str = data->get_string();
                     logger_->info("received Offer SDP:\n{}", sdp_str);
-                    receive_offer_create_answer(sdp_str);
+                    if (!receive_offer_create_answer(sdp_str)){
+                        logger_->error("Failed to receive/create Answer");
+                        sio::message::ptr resp = sio::object_message::create();
+                        resp->get_map()["ok"] = sio::bool_message::create(false);
+                        resp->get_map()["message"] = sio::string_message::create("Failed to receive/create Answer");
+                        ack_resp.push(resp);
+                        return;
+                    }
                 } else {
                     logger_->error("Unexpected Offer");
                 }
@@ -255,11 +271,18 @@ public:
         sio_client_.socket()->on("answer", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
             {
                 std::unique_lock<std::mutex> lock(msg_mutex_);
-                logger_->info("{}", name);
+                logger_->info("event={}", name);
                 if (type_ == PeerClient::PeerType::Caller) {
                     std::string sdp_str = data->get_string();
                     logger_->info("received Answer SDP:\n{}", sdp_str);
-                    receive_answer(sdp_str);
+                    if (!receive_answer(sdp_str)) {
+                        logger_->error("Failed to receive Answer");
+                        sio::message::ptr resp = sio::object_message::create();
+                        resp->get_map()["ok"] = sio::bool_message::create(false);
+                        resp->get_map()["message"] = sio::string_message::create("Failed to receive Answer");
+                        ack_resp.push(resp);
+                        return;
+                    }
                 } else {
                     logger_->error("Unexpected Answer");
                 }
