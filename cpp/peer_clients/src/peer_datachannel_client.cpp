@@ -65,11 +65,12 @@ public:
 
     virtual ~PeerDataChannelClient() {
         if (data_channel_) {
+            data_channel_->Close();
             data_channel_ = nullptr;
         }
 
         if (peer_connection_) {
-            // peer_connection_->Close();
+            peer_connection_->Close();
             peer_connection_ = nullptr;
         }
 
