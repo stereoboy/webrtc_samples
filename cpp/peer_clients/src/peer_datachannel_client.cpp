@@ -17,12 +17,6 @@
 #include <absl/flags/parse.h>
 #include <absl/flags/usage.h>
 
-struct ice {
-    std::string candidate;
-    std::string sdp_mid;
-    int sdp_mline_index;
-};
-
 ABSL_FLAG(std::string, server, "localhost", "The server to connect to.");
 ABSL_FLAG(int,
           port,
@@ -55,7 +49,6 @@ class PeerDataChannelClient : public PeerClient,
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
     rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
 
-    std::list<struct ice> ice_list_;
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
@@ -128,11 +121,26 @@ public:
 
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override {
 
-        logger_->info("OnIceCandidate: {}", candidate->sdp_mline_index());
-        std::string out;
-        candidate->ToString(&out);
-        ice_list_.push_back({out, candidate->sdp_mid(), candidate->sdp_mline_index()});
-        logger_->info("\t{}", out);
+        logger_->info("PeerConnectionInterface::OnIceCandidate: {}, {}", candidate->sdp_mid(), candidate->sdp_mline_index());
+        std::string candidate_str;
+        candidate->ToString(&candidate_str);
+        logger_->info("\t- {}", candidate_str);
+
+        sio::message::ptr msg = sio::object_message::create();
+        msg->get_map()["sdp_mid"] = sio::string_message::create(candidate->sdp_mid());
+        msg->get_map()["sdp_mline_index"] = sio::int_message::create(candidate->sdp_mline_index());
+        msg->get_map()["candidate"] = sio::string_message::create(candidate_str);
+        sio_client_.socket()->emit("ice", msg, [&](sio::message::list const& msg) {
+            std::unique_lock<std::mutex> lock(msg_mutex_);
+            bool ok = msg[0]->get_map()["ok"]->get_bool();
+            std::string message = msg[0]->get_map()["message"]->get_string();
+            if (ok) {
+                logger_->info("ICE Candidate sent successfully");
+            } else {
+                logger_->error("ICE Candidate sent failed to send: {}", message);
+            }
+        });
+
     };
 
     //
@@ -292,6 +300,31 @@ public:
                 ack_resp.push(resp);
             }
         ));
+
+        sio_client_.socket()->on("ice", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
+            {
+                std::unique_lock<std::mutex> lock(msg_mutex_);
+                logger_->info("event={}", name);
+                std::string sdp_mid = data->get_map()["sdp_mid"]->get_string();
+                int sdp_mline_index = data->get_map()["sdp_mline_index"]->get_int();
+                std::string candidate = data->get_map()["candidate"]->get_string();
+
+                std::string err_message;
+                if (add_ice_candidate(sdp_mid, sdp_mline_index, candidate, err_message)) {
+                    logger_->info("ICE Candidate added successfully");
+                    sio::message::ptr resp = sio::object_message::create();
+                    resp->get_map()["ok"] = sio::bool_message::create(true);
+                    resp->get_map()["message"] = sio::string_message::create("accepted");
+                ack_resp.push(resp);
+                } else {
+                    logger_->error("Failed to add ICE Candidate");
+                    sio::message::ptr resp = sio::object_message::create();
+                    resp->get_map()["ok"] = sio::bool_message::create(false);
+                    resp->get_map()["message"] = sio::string_message::create(err_message);
+                    ack_resp.push(resp);
+                }
+            }
+        ));
     }
 
     void query_peer_type(void) {
@@ -399,6 +432,23 @@ public:
 
         peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create().get(), session_description.release());
         peer_connection_->CreateAnswer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+        return true;
+    }
+
+    bool add_ice_candidate(const std::string &sdp_mid, int sdp_mline_index, const std::string &candidate, std::string &err_message) {
+        webrtc::SdpParseError error;
+        std::unique_ptr<webrtc::IceCandidateInterface> ice_candidate(webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, &error));
+        if (!ice_candidate.get()) {
+            logger_->error("Failed to create ICE Candidate: {}", error.description);
+            err_message = error.description;
+            return false;
+        }
+        if (!peer_connection_->AddIceCandidate(ice_candidate.get())) {
+            logger_->error("Failed to add ICE candidate");
+            err_message = "Failed to add ICE candidate";
+            return false;
+        }
+        logger_->info("Added ICE Candidate: {}", candidate);
         return true;
     }
 };

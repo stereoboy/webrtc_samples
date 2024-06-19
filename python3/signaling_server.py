@@ -94,9 +94,10 @@ def query_peer_type(sid, data):
         return "unknown"
 
 @sio.on('ice')
-def on_ice(sid, data):
-    sio.emit('start', msg, room=PEER_DATACHANNEL, skip_sid=sid)
-    pass
+def on_ice(sid, ice):
+    logger.info("ICE:\n{}".format(ice))
+    ret = sio.call('ice', ice, to=get_counter_sid(sid))
+    return ret
 
 @sio.on('offer')
 def on_sdp(sid, sdp):
