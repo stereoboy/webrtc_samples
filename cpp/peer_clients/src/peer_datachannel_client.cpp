@@ -55,6 +55,8 @@ class PeerDataChannelClient : public PeerClient,
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
 
+    std::mutex                      data_channel_mutex_;
+    std::condition_variable_any     data_channel_cond_;
     // std::unique_ptr<rtc::Thread> signaling_thread_;
 public:
     PeerDataChannelClient(): PeerClient("DataChannelClient") {
@@ -95,7 +97,7 @@ public:
     // PeerConnectionObserver implementation.
     //
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override {
-        logger_->info("PeerConnectionInterface::OnSignalingChange: {}", new_state);
+        logger_->info("PeerConnectionInterface::OnSignalingChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
     }
     // void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
     //                 const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>&
@@ -103,20 +105,35 @@ public:
     // void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {}
 
     void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
-        logger_->info("PeerConnectionInterface::OnAddStream: {}");
+        logger_->info("PeerConnectionInterface::OnAddStream: {}", stream.get()->id());
+    };
+
+    void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
+        logger_->info("PeerConnectionObserver::RemoveStream: {}", stream.get()->id());
     };
 
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {
         logger_->info("PeerConnectionInterface::OnDataChannel: {}", channel->label());
+        std::unique_lock<std::mutex> lock(data_channel_mutex_);
+
+        data_channel_ = channel;
+        data_channel_->RegisterObserver(this);
+        data_channel_cond_.notify_all();
     }
     void OnRenegotiationNeeded() override {
         logger_->info("PeerConnectionInterface::OnRenegotiationNeeded");
     }
+
     void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override {
-        logger_->info("PeerConnectionInterface::OnIceConnectionChange: {}", new_state);
+        logger_->info("PeerConnectionInterface::OnIceConnectionChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
     }
+
+     virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override {
+        logger_->info("PeerConnectionInterface::OnConnectionChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+     }
+
     void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override {
-        logger_->info("PeerConnectionInterface::OnIceGatheringChange: {}", new_state);
+        logger_->info("PeerConnectionInterface::OnIceGatheringChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
     }
 
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override {
@@ -193,11 +210,20 @@ public:
     };
 
     void OnMessage(const webrtc::DataBuffer &buffer) override {
-        logger_->info("DataChannelObserver::Message: {}", buffer.data.data());
+        std::unique_lock<std::mutex> lock(data_channel_mutex_);
+        std::string message(buffer.data.data<char>(), buffer.data.size());
+        logger_->info("DataChannelObserver::Message: {}", message);
+
+        if (type_ == PeerClient::PeerType::Callee) {
+            std::string response = "response";
+            webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(response.c_str(), response.size() + 1), true);
+            data_channel_->Send(buffer);
+        }
+        data_channel_cond_.notify_all();
     };
 
-    void OnBufferedAmountChange(uint64_t previous_amount) override {
-        logger_->info("DataChannelObserver::BufferedAmountChange: {}", previous_amount);
+    void OnBufferedAmountChange(uint64_t sent_data_size) override {
+        logger_->info("DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
     };
 
     //
@@ -400,9 +426,8 @@ public:
             logger_->error("Failed to create DataChannel: {}", error_or_data_channel.error().message());
             return false;
         }
-        data_channel_->RegisterObserver(this);
 
-        logger_->info("current");
+        data_channel_->RegisterObserver(this);
         return true;
     }
 
@@ -451,6 +476,28 @@ public:
         logger_->info("Added ICE Candidate: {}", candidate);
         return true;
     }
+
+    void wait_for_data_channel_connection(void) {
+        std::unique_lock<std::mutex> lock(data_channel_mutex_);
+        if (!connected_) {
+            return;
+        }
+        logger_->info("Waiting for data channel connection");
+        data_channel_cond_.wait(data_channel_mutex_);
+    }
+
+    void send_message_sync(const std::string &message) {
+        std::unique_lock<std::mutex> lock(data_channel_mutex_);
+        logger_->info("Sending message: {}", message);
+        webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(message.c_str(), message.size() + 1), true);
+        data_channel_->Send(buffer);
+        data_channel_cond_.wait(data_channel_mutex_);
+    }
+
+    void wait_for_message(void) {
+        std::unique_lock<std::mutex> lock(data_channel_mutex_);
+        data_channel_cond_.wait(data_channel_mutex_);
+    }
 };
 
 int main(int argc, char* argv[]) {
@@ -476,9 +523,18 @@ int main(int argc, char* argv[]) {
 
     // client->query_peer_type();
 
+    client->wait_for_data_channel_connection();
     try {
-        while(client->is_connected()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // while(client->is_connected()) {
+        for (int i = 0; i < 10; i++) {
+            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            if (client->getType() == PeerClient::PeerType::Caller) {
+                std::string message = "hello world";
+                client->send_message_sync(message);
+                // client->wait_for_message();
+            } else {
+                // logger->info("Waiting for message");
+            }
         }
     } catch (std::exception &e) {
         logger->error("Terminated by Interrupt: {} ", e.what());

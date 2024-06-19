@@ -43,6 +43,10 @@ public:
 
     }
 
+    PeerType getType() {
+        return type_;
+    }
+
     void connect_sync(const std::string& hostname, const int port) {
         sio_client_.connect(fmt::format("https://{}:{}", hostname, port));
         std::unique_lock<std::mutex> lock(msg_mutex_);
