@@ -1,0 +1,6 @@
+[submodule "cpp/peer_clients/lib/socket.io-client-cpp"]
+	path = cpp/peer_clients/lib/socket.io-client-cpp
+	url = https://github.com/socketio/socket.io-client-cpp.git
+[submodule "cpp/peer_clients/lib/spdlog"]
+	path = cpp/peer_clients/lib/spdlog
+	url = https://github.com/gabime/spdlog.git
