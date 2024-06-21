@@ -173,14 +173,14 @@ apt-get install libc++abi-11-dev libc++-10-dev
 ./peerconnection_client
 ```
   <p align="left">
-    <img src="../docs/screenshots/2024_05_14_screenshot_01.png" width="640">
+    <img src="./docs/screenshots/2024_05_14_screenshot_01.png" width="640">
   </p>
   * click the peer `
   <p align="left">
-    <img src="../docs/screenshots/2024_05_14_screenshot_02.png" width="640">
+    <img src="./docs/screenshots/2024_05_14_screenshot_02.png" width="640">
   </p>
   <p align="left">
-    <img src="../docs/screenshots/2024_05_14_screenshot_00.png" width="640">
+    <img src="./docs/screenshots/2024_05_14_screenshot_00.png" width="640">
   </p>
 
 
