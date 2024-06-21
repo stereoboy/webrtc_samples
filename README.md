@@ -214,7 +214,7 @@ cd webrtc-checkout
 fetch --nohooks webrtc    // about 10 minutes
 gclient sync              // about 5 minutes
 ```
-* checkout the milestone `119`
+* checkout the commit id `d0c86830d00d6aa4608cd6f9970352e583f16308`
 ```
 cd src
 git checkout d0c86830d00d6aa4608cd6f9970352e583f16308
