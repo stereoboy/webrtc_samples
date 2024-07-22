@@ -15,14 +15,16 @@
 | --- | --- | --- | --- |
 | llvm | for clang, lld | 18 |  |
 
-### clang
+### clang v18
 * Install clang on Ubuntu
   * https://apt.llvm.org/
   * https://ubuntuhandbook.org/index.php/2023/09/how-to-install-clang-17-or-16-in-ubuntu-22-04-20-04/
   ```
   wget https://apt.llvm.org/llvm.sh
   chmod +x llvm.sh
-  sudo ./llvm.sh <version number>
+  # sudo ./llvm.sh <version number>
+  sudo ./llvm.sh 18
+
   ```
 * https://libcxx.llvm.org/UsingLibcxx.html#using-a-custom-built-libc
 
@@ -35,11 +37,11 @@ fetch --nohooks webrtc    // about 10 minutes
 gclient sync              // about 5 minutes
 ```
 * checkout the milestone `119`
-```
-cd src
-git checkout branch-heads/6045
-gclient sync
-```
+  ```
+  cd src
+  git checkout branch-heads/6045
+  gclient sync
+  ```
 * Build
   * Release version
     ```
@@ -51,7 +53,7 @@ gclient sync
     [7242/7242] STAMP obj/default.stamp
     ```
     ```
-    ninja -C out/Release webrtc // This is not enough for absl
+    ninja -C out/Release webrtc // This is not enough for abseil-cpp
     ```
   * Debug version
     ```
@@ -63,7 +65,7 @@ gclient sync
     [7242/7242] STAMP obj/default.stamp
     ```
 
-### llvm for lib
+### llvm for C++ stdlib
 * https://libcxx.llvm.org/BuildingLibcxx.html
 * Find right version of clang
 
