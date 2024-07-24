@@ -1,6 +1,7 @@
 ##
-### Signaling Server
+### Python Signaling Server
 ```
+python3 -m pip install python-socketio eventlet
 cd python3
 python3 signaling_server.py
 ```
