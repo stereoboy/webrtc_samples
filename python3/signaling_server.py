@@ -2,7 +2,6 @@ import eventlet
 import socketio
 
 import config
-import numpy as np
 import time
 import collections
 
