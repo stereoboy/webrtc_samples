@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <csignal>
 #include <thread>
 
@@ -213,7 +215,7 @@ public:
     void OnMessage(const webrtc::DataBuffer &buffer) override {
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
         std::string message(buffer.data.data<char>(), buffer.data.size());
-        logger_->info("DataChannelObserver::Message: {}", message);
+        // logger_->info("DataChannelObserver::OnMessage: {}", message);
 
         if (type_ == PeerClient::PeerType::Callee) {
             std::string response = "response";
@@ -224,7 +226,7 @@ public:
     };
 
     void OnBufferedAmountChange(uint64_t sent_data_size) override {
-        logger_->info("DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
+        // logger_->info("DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
     };
 
     //
@@ -489,7 +491,7 @@ public:
 
     void send_message_sync(const std::string &message) {
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
-        logger_->info("Sending message: {}", message);
+        // logger_->info("Sending message: {}", message);
         webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(message.c_str(), message.size() + 1), true);
         data_channel_->Send(buffer);
         data_channel_cond_.wait(data_channel_mutex_);
@@ -526,15 +528,28 @@ int main(int argc, char* argv[]) {
 
     client->wait_for_data_channel_connection();
     try {
-        // while(client->is_connected()) {
-        for (int i = 0; i < 10; i++) {
+        int count = 0;
+        auto b = std::chrono::high_resolution_clock::now();
+        while(client->is_connected()) {
+        // for (int i = 0; i < 10; i++) {
             // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             if (client->getType() == PeerClient::PeerType::Caller) {
                 std::string message = "hello world";
                 client->send_message_sync(message);
                 // client->wait_for_message();
+
+                auto e = std::chrono::high_resolution_clock::now();
+                double elapsed = std::chrono::duration<double, std::milli>(e - b).count();
+                count++;
+                if (elapsed > 10000) {
+                    const float hz = count*1000/elapsed;
+                    logger->info("Sent {} messages in {} ms ({} Hz)", count, elapsed, hz);
+                    count = 0;
+                    b = std::chrono::high_resolution_clock::now();
+                }
             } else {
-                // logger->info("Waiting for message");
+                logger->info("Callee main thread is doing nothing.");
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             }
         }
     } catch (std::exception &e) {
