@@ -127,13 +127,21 @@ ninja: Entering directory `build'
 [1190/1190] Linking CXX static library lib/libc++.a
 ```
 
+#### Download NVIDIA Precompiled `libwebrtc.a`
+* download `WebRTC_R36.3.0_aarch64.tbz2` from https://developer.nvidia.com/embedded/jetson-linux-r363
+```
+mkdir precompiled
+tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./precompiled
+```
 ## `peer_clients`
-### Libraries
+### Dependencies
 
 | Name | Description | Version |
 | --- | --- | --- |
 | socket.io-client | | latest |
 | spdlog | | v1.9.2|
 
-
-
+### Build
+```
+cmake -DUSE_PRECOMPILED_WEBRTC=ON .. && make -j
+```

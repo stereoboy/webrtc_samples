@@ -88,12 +88,14 @@ ninja -C build cxx cxxabi
 
 
 ## `peer_clients`
-### Libraries
+### ### Dependencies
 
 | Name | Description | Version |
 | --- | --- | --- |
 | socket.io-client | | latest |
 | spdlog | | v1.9.2|
 
-
-
+### Build
+```
+cmake  -DUSE_PREBUILT_WEBRTC=OFF .. && make -j
+```
