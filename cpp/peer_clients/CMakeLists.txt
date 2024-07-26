@@ -85,14 +85,15 @@ set(PRECOMPILED_OBJS
 
 # set_source_files_properties(${PRECOMPILED_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
-# #building target executable
-add_executable(peer_datachannel_client src/peer_datachannel_client.cpp ${PRECOMPILED_OBJS})
-# add_executable(peer_datachannel_client src/peer_datachannel_client.cpp)
-
-
 # Disable using the install rpath
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 # set(CMAKE_SKIP_BUILD_PATH FALSE)
+
+################################################################################################################
+# WebRTC Sample for DataChannel
+#
+add_executable(peer_datachannel_client src/peer_datachannel_client.cpp ${PRECOMPILED_OBJS})
+# add_executable(peer_datachannel_client src/peer_datachannel_client.cpp)
 
 # #linking library directory
 target_link_directories(peer_datachannel_client PUBLIC
@@ -110,15 +111,15 @@ target_include_directories(
 )
 
 target_compile_definitions(
-  peer_datachannel_client PUBLIC
-  _LIBCPP_ENABLE_SAFE_MODE=1
-  _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
-  _LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS
-  # _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
-  # CR_LIBCXX_REVISION=7cf98622abaf832e2d4784889ebc69d5b6fde4d8
-  WEBRTC_POSIX
-  WEBRTC_LINUX
-  # ASIO_STANDALONE
+    peer_datachannel_client PUBLIC
+    _LIBCPP_ENABLE_SAFE_MODE=1
+    _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+    _LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS
+    # _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+    # CR_LIBCXX_REVISION=7cf98622abaf832e2d4784889ebc69d5b6fde4d8
+    WEBRTC_POSIX
+    WEBRTC_LINUX
+    # ASIO_STANDALONE
 )
 
 target_compile_options(
@@ -139,14 +140,14 @@ target_compile_options(
 )
 
 target_link_options(
-  peer_datachannel_client PUBLIC
-  -Werror -fuse-ld=lld-18
-  -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
-  -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
-  -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs
-  -Wl,--as-needed -nostdlib++
-  # -Wl,--as-needed -stdlib=libc++
-  # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
+    peer_datachannel_client PUBLIC
+    -Werror -fuse-ld=lld-18
+    -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
+    -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
+    -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs
+    -Wl,--as-needed -nostdlib++
+    # -Wl,--as-needed -stdlib=libc++
+    # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
 )
 
 target_link_libraries(
@@ -154,15 +155,11 @@ target_link_libraries(
     c++
     c++abi
     dl
-
     webrtc
-
     # sioclient_tls
     sioclient
-
     spdlog::spdlog
     # fmt::fmt
-
     # absl::flags_parse
     # absl::flags_usage
 )
@@ -170,4 +167,80 @@ if (CMAKE_THREAD_LIBS_INIT)
     target_link_libraries(peer_datachannel_client PUBLIC ${CMAKE_THREAD_LIBS_INIT})
 else()
     target_link_libraries(peer_datachannel_client PUBLIC pthread)
+endif()
+
+################################################################################################################
+# WebRTC Sample for Video
+#
+add_executable(peer_video_client src/peer_video_client.cpp ${PRECOMPILED_OBJS})
+
+# #linking library directory
+target_link_directories(peer_video_client PUBLIC
+    ${llvm_BUILD_DIR}/lib/
+)
+
+target_include_directories(
+    peer_video_client PUBLIC
+    ${llvm_BUILD_DIR}/include/c++/v1
+    lib/socket.io-client-cpp/src
+    lib/socket.io-client-cpp/lib/asio/asio/include
+    ${webrtc_DIR}/third_party/abseil-cpp
+    include
+)
+
+target_compile_definitions(
+    peer_video_client PUBLIC
+    _LIBCPP_ENABLE_SAFE_MODE=1
+    _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+    _LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS
+    # _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+    # CR_LIBCXX_REVISION=7cf98622abaf832e2d4784889ebc69d5b6fde4d8
+    WEBRTC_POSIX
+    WEBRTC_LINUX
+    # ASIO_STANDALONE
+)
+
+target_compile_options(
+    peer_video_client PUBLIC
+    -Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -Wno-trigraphs
+    -gsimple-template-names
+    # -stdlib=libc++
+    #---------------------------------------------------------
+    # for socket.io-client-cpp
+    # -fno-exceptions   // error: cannot use 'throw' with exceptions disabled
+    # -fno-rtti         // error: use of typeid requires -frtti
+    #---------------------------------------------------------
+    -nostdinc++
+    # -isystem${webrtc_DIR}/third_party/libc++/src/include
+    # -isystem${webrtc_DIR}/third_party/libc++abi/src/include
+    # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
+    -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual
+)
+
+target_link_options(
+    peer_video_client PUBLIC
+    -Werror -fuse-ld=lld-18
+    -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
+    -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
+    -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs
+    -Wl,--as-needed -nostdlib++
+    # -Wl,--as-needed -stdlib=libc++
+    # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
+)
+
+target_link_libraries(
+    peer_video_client PUBLIC
+    c++
+    c++abi
+    dl
+    webrtc
+    # sioclient_tls
+    sioclient
+    spdlog::spdlog
+)
+
+if (CMAKE_THREAD_LIBS_INIT)
+    target_link_libraries(peer_video_client PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+else()
+    target_link_libraries(peer_video_client PUBLIC pthread)
 endif()
