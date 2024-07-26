@@ -42,6 +42,8 @@ add_subdirectory(./lib/spdlog)
 # add_subdirectory(./lib/fmt)
 # add_subdirectory(./lib/abseil-cpp/)
 
+option(USE_PRECOMPILED_WEBRTC "use precompiled NVIDIA provided library" ON)
+
 # set(CMAKE_CXX_STANDARD 20) // cannot use 20 for socket.io-client-cpp, error: no template named 'result_of' in namespace 'std'
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -52,15 +54,25 @@ find_package(Threads REQUIRED)
 # find_package(fmt REQUIRED)
 
 
-include_directories(
-  ${webrtc_DIR}
-  # ${webrtc_DIR}/third_party/abseil-cpp
-  # ${webrtc_DIR}/buildtools/third_party/libc++
-  # ${webrtc_DIR}/third_party/libyuv/include
-)
-
-add_library(webrtc STATIC IMPORTED)
-set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/libwebrtc.a)
+#include_directories(
+#  ${webrtc_DIR}
+#  # ${webrtc_DIR}/third_party/abseil-cpp
+#  # ${webrtc_DIR}/buildtools/third_party/libc++
+#  # ${webrtc_DIR}/third_party/libyuv/include
+#)
+if (USE_PRECOMPILED_WEBRTC)
+  include_directories(
+    ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
+    )
+  add_library(webrtc STATIC IMPORTED)
+  set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/libwebrtc.a)
+else()
+  include_directories(
+    ${webrtc_DIR}
+    )
+  add_library(webrtc STATIC IMPORTED)
+  set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/libwebrtc.a)
+endif()
 
 # file(GLOB LIBCPP_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++/libc++/*.o)
 # file(GLOB LIBCPPABI_OBJS ${webrtc_BUILD_DIR}/obj/buildtools/third_party/libc++abi/libc++abi/*.o)
@@ -94,7 +106,6 @@ target_include_directories(
     lib/socket.io-client-cpp/lib/asio/asio/include
     # lib/abseil-cpp
     ${webrtc_DIR}/third_party/abseil-cpp
-    ${webrtc_DIR}
     include
 )
 
