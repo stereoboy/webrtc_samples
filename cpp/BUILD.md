@@ -88,7 +88,7 @@ ninja -C build cxx cxxabi
 
 
 ## `peer_clients`
-### ### Dependencies
+### Dependencies
 
 | Name | Description | Version |
 | --- | --- | --- |
@@ -97,5 +97,5 @@ ninja -C build cxx cxxabi
 
 ### Build
 ```
-cmake  -DUSE_PREBUILT_WEBRTC=OFF .. && make -j
+cmake  -DUSE_PRECOMPILED_WEBRTC=OFF .. && make -j
 ```
