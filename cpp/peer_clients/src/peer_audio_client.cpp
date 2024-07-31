@@ -20,8 +20,6 @@
 
 #include <modules/audio_device/include/audio_device.h>
 #include <modules/audio_processing/include/audio_processing.h>
-#include <modules/video_capture/video_capture.h>
-#include <modules/video_capture/video_capture_factory.h>
 
 #include <p2p/base/port_allocator.h>
 #include <pc/video_track_source.h>
@@ -30,9 +28,6 @@
 #include <rtc_base/ssl_adapter.h>
 // #include <rtc_base/thread.h>
 // #include <system_wrappers/include/field_trial.h>
-
-#include <test/vcm_capturer.h>
-
 
 #include "peer_client.hpp"
 
@@ -65,12 +60,10 @@ public:
 
 class PeerAudioClient : public PeerClient,
                               public webrtc::PeerConnectionObserver,
-                              public webrtc::DataChannelObserver,
                               public webrtc::CreateSessionDescriptionObserver
                             {
 
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
-    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
@@ -78,8 +71,6 @@ class PeerAudioClient : public PeerClient,
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
 
-    std::mutex                      data_channel_mutex_;
-    std::condition_variable_any     data_channel_cond_;
     // std::unique_ptr<rtc::Thread> signaling_thread_;
 public:
     PeerAudioClient(): PeerClient("AudioClient") {
@@ -87,11 +78,6 @@ public:
     }
 
     virtual ~PeerAudioClient() {
-        if (data_channel_) {
-            data_channel_->Close();
-            data_channel_ = nullptr;
-        }
-
         if (peer_connection_) {
             peer_connection_->Close();
             peer_connection_ = nullptr;
@@ -128,8 +114,6 @@ public:
     void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
                     const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>> &streams) override {
         logger_->info("PeerConnectionInterface::OnAddTrack: {}", receiver->id());
-        // TODO
-        // Start to render Remote Video Track, if stream is video
     }
 
     void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {
@@ -146,11 +130,6 @@ public:
 
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {
         logger_->info("PeerConnectionInterface::OnDataChannel: {}", channel->label());
-        std::unique_lock<std::mutex> lock(data_channel_mutex_);
-
-        data_channel_ = channel;
-        data_channel_->RegisterObserver(this);
-        data_channel_cond_.notify_all();
     }
     void OnRenegotiationNeeded() override {
         logger_->info("PeerConnectionInterface::OnRenegotiationNeeded");
@@ -232,30 +211,6 @@ public:
 
     void OnFailure(webrtc::RTCError error) override {
         logger_->info("CreateSessionDescriptionObserver::OnFailure({})", error.message());
-    };
-
-    //
-    // DataChannelObserver implementation
-    //
-    void OnStateChange() override {
-        logger_->info("DataChannelObserver::StateChange");
-    };
-
-    void OnMessage(const webrtc::DataBuffer &buffer) override {
-        std::unique_lock<std::mutex> lock(data_channel_mutex_);
-        std::string message(buffer.data.data<char>(), buffer.data.size());
-        // logger_->info("DataChannelObserver::OnMessage: {}", message);
-
-        if (type_ == PeerClient::PeerType::Callee) {
-            std::string response = "response";
-            webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(response.c_str(), response.size() + 1), true);
-            data_channel_->Send(buffer);
-        }
-        data_channel_cond_.notify_all();
-    };
-
-    void OnBufferedAmountChange(uint64_t sent_data_size) override {
-        // logger_->info("DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
     };
 
     //
@@ -448,18 +403,6 @@ public:
             return false;
         }
 
-        webrtc::DataChannelInit config;
-        auto error_or_data_channel = peer_connection_->CreateDataChannelOrError("data_channel", &config);
-        if (error_or_data_channel.ok()) {
-            data_channel_ = std::move(error_or_data_channel.value());
-            logger_->info("data_channel_ created successfully");
-        } else {
-            logger_->error("Failed to create DataChannel: {}", error_or_data_channel.error().message());
-            return false;
-        }
-
-        data_channel_->RegisterObserver(this);
-
         if (!peer_connection_->GetSenders().empty()) {
             return false;  // Already added tracks.
         }
@@ -525,35 +468,13 @@ public:
         logger_->info("Added ICE Candidate: {}", candidate);
         return true;
     }
-
-    void wait_for_data_channel_connection(void) {
-        std::unique_lock<std::mutex> lock(data_channel_mutex_);
-        if (!connected_) {
-            return;
-        }
-        logger_->info("Waiting for data channel connection");
-        data_channel_cond_.wait(data_channel_mutex_);
-    }
-
-    void send_message_sync(const std::string &message) {
-        std::unique_lock<std::mutex> lock(data_channel_mutex_);
-        // logger_->info("Sending message: {}", message);
-        webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(message.c_str(), message.size() + 1), true);
-        data_channel_->Send(buffer);
-        data_channel_cond_.wait(data_channel_mutex_);
-    }
-
-    void wait_for_message(void) {
-        std::unique_lock<std::mutex> lock(data_channel_mutex_);
-        data_channel_cond_.wait(data_channel_mutex_);
-    }
 };
 
 int main(int argc, char* argv[]) {
 
     auto logger = spdlog::stdout_color_mt("PeerAudio");
     absl::SetProgramUsageMessage(
-      "Example usage: ./peer_datachanenl_client --server=localhost --port=5000\n");
+      "Example usage: ./peer_audio_client --server=localhost --port=5000\n");
     absl::ParseCommandLine(argc, argv);
 
     logger->info("Starting PeerAudioClient");
@@ -571,8 +492,6 @@ int main(int argc, char* argv[]) {
     client->connect_sync(absl::GetFlag(FLAGS_server), absl::GetFlag(FLAGS_port));
 
     // client->query_peer_type();
-
-    client->wait_for_data_channel_connection();
     try {
         int count = 0;
         auto b = std::chrono::high_resolution_clock::now();
@@ -580,22 +499,11 @@ int main(int argc, char* argv[]) {
         // for (int i = 0; i < 10; i++) {
             // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             if (client->getType() == PeerClient::PeerType::Caller) {
-                std::string message = "hello world";
-                client->send_message_sync(message);
-                // client->wait_for_message();
-
-                auto e = std::chrono::high_resolution_clock::now();
-                double elapsed = std::chrono::duration<double, std::milli>(e - b).count();
-                count++;
-                if (elapsed > 10000) {
-                    const float hz = count*1000/elapsed;
-                    logger->info("Sent {} messages in {} ms ({} Hz)", count, elapsed, hz);
-                    count = 0;
-                    b = std::chrono::high_resolution_clock::now();
-                }
+                logger->info("Callee main thread is doing nothing.");
+                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             } else {
                 logger->info("Callee main thread is doing nothing.");
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             }
         }
     } catch (std::exception &e) {

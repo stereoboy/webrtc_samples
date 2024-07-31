@@ -180,8 +180,6 @@ endif()
 #
 add_executable(peer_audio_client
     src/peer_audio_client.cpp
-    # ${webrtc_DIR}/test/vcm_capturer.cc
-    # ${webrtc_DIR}/test/platform_video_capturer.cc
     ${PRECOMPILED_OBJS}
 )
 
@@ -250,8 +248,6 @@ target_link_libraries(
     sioclient
     spdlog::spdlog
     ${X11_LIBRARIES} # Add the X11 library
-    ${GLIB_LIBRARIES}
-    ${GIO_LIBRARIES}
     rt
 )
 
