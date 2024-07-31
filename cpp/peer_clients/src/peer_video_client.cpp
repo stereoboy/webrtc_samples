@@ -7,11 +7,45 @@
 // #include <asio.hpp>
 // #include <asio/ssl.hpp>
 
+#include <api/media_stream_interface.h>
 #include <api/peer_connection_interface.h>
+
+#include <api/peer_connection_interface.h>
+#include <api/audio/audio_mixer.h>
+#include <api/audio_codecs/audio_decoder_factory.h>
+#include <api/audio_codecs/audio_encoder_factory.h>
+#include <api/audio_codecs/builtin_audio_decoder_factory.h>
+#include <api/audio_codecs/builtin_audio_encoder_factory.h>
+#include <api/audio_options.h>
+
+#include <api/video_codecs/video_decoder_factory.h>
+#include <api/video_codecs/video_decoder_factory_template.h>
+#include <api/video_codecs/video_decoder_factory_template_dav1d_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_open_h264_adapter.h>
+#include <api/video_codecs/video_encoder_factory.h>
+#include <api/video_codecs/video_encoder_factory_template.h>
+#include <api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template_open_h264_adapter.h>
+
+#include <modules/audio_device/include/audio_device.h>
+#include <modules/audio_processing/include/audio_processing.h>
+#include <modules/video_capture/video_capture.h>
+#include <modules/video_capture/video_capture_factory.h>
+
+#include <p2p/base/port_allocator.h>
+#include <pc/video_track_source.h>
+
 #include <api/create_peerconnection_factory.h>
 #include <rtc_base/ssl_adapter.h>
 // #include <rtc_base/thread.h>
 // #include <system_wrappers/include/field_trial.h>
+
+#include <test/vcm_capturer.h>
+
 
 #include "peer_client.hpp"
 
@@ -40,6 +74,40 @@ public:
         RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": " << error.message();
         spdlog::info("{}", __PRETTY_FUNCTION__);
     }
+};
+
+class CapturerTrackSource : public webrtc::VideoTrackSource {
+
+public:
+    // static rtc::scoped_refptr<CapturerTrackSource> Create() {
+    //     const size_t kWidth = 640;
+    //     const size_t kHeight = 480;
+    //     const size_t kFps = 30;
+    //     std::unique_ptr<webrtc::test::VcmCapturer> capturer;
+    //     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
+    //         webrtc::VideoCaptureFactory::CreateDeviceInfo());
+    //     if (!info) {
+    //         return nullptr;
+    //     }
+    //     int num_devices = info->NumberOfDevices();
+    //     for (int i = 0; i < num_devices; ++i) {
+    //         capturer = absl::WrapUnique(webrtc::test::VcmCapturer::Create(kWidth, kHeight, kFps, i));
+    //         if (capturer) {
+    //             return rtc::make_ref_counted<CapturerTrackSource>(std::move(capturer));
+    //         }
+    //     }
+    //     return nullptr;
+    // }
+
+protected:
+    explicit CapturerTrackSource(std::unique_ptr<webrtc::test::VcmCapturer> capturer)
+        : VideoTrackSource(/*remote=*/false), capturer_(std::move(capturer)) {}
+
+protected:
+    rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override {
+        return capturer_.get();
+    }
+    std::unique_ptr<webrtc::test::VcmCapturer> capturer_;
 };
 
 class PeerDataChannelClient : public PeerClient,
@@ -96,16 +164,50 @@ public:
         }
         logger_->info("PeerDataChannelClient deleted");
     }
+
+    rtc::scoped_refptr<CapturerTrackSource> CreateCapturerTrackSource() {
+        const size_t kWidth = 640;
+        const size_t kHeight = 480;
+        const size_t kFps = 30;
+        std::unique_ptr<webrtc::test::VcmCapturer> capturer;
+        std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
+        if (!info) {
+            return nullptr;
+        }
+        int num_devices = info->NumberOfDevices();
+        for (int i = 0; i < num_devices; ++i) {
+            char device_name[256];
+            char unique_name[256];
+            char product_name[256];
+            info->GetDeviceName(i, device_name, sizeof(device_name), unique_name, sizeof(unique_name), product_name, sizeof(product_name));
+            // logger_->info("\t[{}] Device Name: {}, Unique Name: {}, Product Name: {}", i, device_name, unique_name, product_name);
+            logger_->info("Try to create VideoTrackSource from Device[{}]({}, {})", i, device_name, unique_name, product_name);
+
+            capturer = absl::WrapUnique(webrtc::test::VcmCapturer::Create(kWidth, kHeight, kFps, i));
+            if (capturer) {
+                return rtc::make_ref_counted<CapturerTrackSource>(std::move(capturer));
+            }
+        }
+        return nullptr;
+    }
+
     //
     // PeerConnectionObserver implementation.
     //
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override {
         logger_->info("PeerConnectionInterface::OnSignalingChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
     }
-    // void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
-    //                 const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>&
-    //                 streams) override {}
-    // void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {}
+
+    void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
+                    const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>> &streams) override {
+        logger_->info("PeerConnectionInterface::OnAddTrack: {}", receiver->id());
+        // TODO
+        // Start to render Remote Video Track, if stream is video
+    }
+
+    void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {
+        logger_->info("PeerConnectionInterface::OnRemoveTrack: {}", receiver->id());
+    }
 
     void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
         logger_->info("PeerConnectionInterface::OnAddStream: {}", stream.get()->id());
@@ -382,7 +484,7 @@ public:
         ice_server.uri = "stun:stun.l.google.com:19302";
         configuration_.servers.push_back(ice_server);
 
-#if 1
+#if 0
         network_thread_ = rtc::Thread::CreateWithSocketServer();
         network_thread_->Start();
         worker_thread_ = rtc::Thread::Create();
@@ -402,10 +504,18 @@ public:
         peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
             nullptr /* network_thread */, nullptr /* worker_thread */,
             signaling_thread_.get(), nullptr /* default_adm */,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
+            webrtc::CreateBuiltinAudioEncoderFactory(),
+            webrtc::CreateBuiltinAudioDecoderFactory(),
+            std::make_unique<webrtc::VideoEncoderFactoryTemplate<
+                webrtc::LibvpxVp8EncoderTemplateAdapter,
+                webrtc::LibvpxVp9EncoderTemplateAdapter,
+                webrtc::OpenH264EncoderTemplateAdapter,
+                webrtc::LibaomAv1EncoderTemplateAdapter>>(),
+            std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+                webrtc::LibvpxVp8DecoderTemplateAdapter,
+                webrtc::LibvpxVp9DecoderTemplateAdapter,
+                webrtc::OpenH264DecoderTemplateAdapter,
+                webrtc::Dav1dDecoderTemplateAdapter>>(),
             nullptr /* audio_mixer */, nullptr /* audio_processing */);
 #endif
 
@@ -431,6 +541,55 @@ public:
         }
 
         data_channel_->RegisterObserver(this);
+
+        if (!peer_connection_->GetSenders().empty()) {
+            return false;  // Already added tracks.
+        }
+
+        cricket::AudioOptions audio_options;
+        logger_->info("audio_options={}", audio_options.ToString());
+        rtc::scoped_refptr<webrtc::AudioSourceInterface> audio_source = peer_connection_factory_->CreateAudioSource(audio_options);
+        rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
+            peer_connection_factory_->CreateAudioTrack("audio_label", audio_source.get())
+        );
+        auto result_or_error = peer_connection_->AddTrack(audio_track, {"stream_id"});
+        if (!result_or_error.ok()) {
+            logger_->error("Failed to add audio track to PeerConnection: {}", result_or_error.error().message());
+            return false;
+        }
+
+        logger_->info("Add audio track successfully.");
+
+        std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
+        if (!info) {
+            logger_->error("Failed to create VideoCaptureFactory::DeviceInfo");
+            return false;
+        }
+        int num_devices = info->NumberOfDevices();
+        logger_->info("[Video Capture Device List]");
+        for (int i = 0; i < num_devices; ++i) {
+            char device_name[256];
+            char unique_name[256];
+            char product_name[256];
+            info->GetDeviceName(i, device_name, sizeof(device_name), unique_name, sizeof(unique_name), product_name, sizeof(product_name));
+            // logger_->info("\t[{}] Device Name: {}, Unique Name: {}, Product Name: {}", i, device_name, unique_name, product_name);
+            logger_->info("\t[{}] Device Name: {}, Unique Name: {}", i, device_name, unique_name, product_name);
+        }
+
+        rtc::scoped_refptr<CapturerTrackSource> video_device = CreateCapturerTrackSource();
+        if (!video_device) {
+            logger_->error("Failed to create VideoTrackSource ");
+            return false;
+        }
+        rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(peer_connection_factory_->CreateVideoTrack(video_device, "video_label"));
+        result_or_error = peer_connection_->AddTrack(video_track, {"stream_id"});
+        if (!result_or_error.ok()) {
+            logger_->error("Failed to add video track to PeerConnection: {}", result_or_error.error().message());
+        }
+        logger_->info("Add video track successfully.");
+
+        // TODO
+        // Start to render Local Video Track
         return true;
     }
 

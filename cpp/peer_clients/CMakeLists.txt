@@ -50,8 +50,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add the missing find_package(Threads REQUIRED) command
 find_package(Threads REQUIRED)
+find_package(X11 REQUIRED)
 # find_package(spdlog REQUIRED)
 # find_package(fmt REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GLIB REQUIRED glib-2.0)
+pkg_search_module(GIO REQUIRED gio-2.0)
+message(STATUS "GLIB_LDFLAGS: ${GLIB_LDFLAGS}")
+message(STATUS "GIO_LDFLAGS: ${GIO_LDFLAGS}")
 
 
 #include_directories(
@@ -172,7 +178,21 @@ endif()
 ################################################################################################################
 # WebRTC Sample for Video
 #
-add_executable(peer_video_client src/peer_video_client.cpp ${PRECOMPILED_OBJS})
+file(GLOB_RECURSE TEST_OBJS
+    ${webrtc_BUILD_DIR}/obj/test/platform_video_capturer/*.o
+    ${webrtc_BUILD_DIR}/obj/test/test_video_capturer/*.o
+)
+
+# add_library(video_track_source STATIC IMPORTED)
+# set_target_properties(video_track_source PROPERTIES IMPORTED_LOCATION ${webrtc_BUILD_DIR}/obj/pc/libvideo_track_source.a)
+
+add_executable(peer_video_client
+    src/peer_video_client.cpp
+    # ${webrtc_DIR}/test/vcm_capturer.cc
+    # ${webrtc_DIR}/test/platform_video_capturer.cc
+    ${PRECOMPILED_OBJS}
+    ${TEST_OBJS}
+)
 
 # #linking library directory
 target_link_directories(peer_video_client PUBLIC
@@ -209,6 +229,7 @@ target_compile_options(
     # for socket.io-client-cpp
     # -fno-exceptions   // error: cannot use 'throw' with exceptions disabled
     # -fno-rtti         // error: use of typeid requires -frtti
+    -fno-rtti
     #---------------------------------------------------------
     -nostdinc++
     # -isystem${webrtc_DIR}/third_party/libc++/src/include
@@ -237,6 +258,10 @@ target_link_libraries(
     # sioclient_tls
     sioclient
     spdlog::spdlog
+    ${X11_LIBRARIES} # Add the X11 library
+    ${GLIB_LIBRARIES}
+    ${GIO_LIBRARIES}
+    rt
 )
 
 if (CMAKE_THREAD_LIBS_INIT)
