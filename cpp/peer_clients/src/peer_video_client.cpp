@@ -110,7 +110,7 @@ protected:
     std::unique_ptr<webrtc::test::VcmCapturer> capturer_;
 };
 
-class PeerDataChannelClient : public PeerClient,
+class PeerVideoClient : public PeerClient,
                               public webrtc::PeerConnectionObserver,
                               public webrtc::DataChannelObserver,
                               public webrtc::CreateSessionDescriptionObserver
@@ -129,11 +129,11 @@ class PeerDataChannelClient : public PeerClient,
     std::condition_variable_any     data_channel_cond_;
     // std::unique_ptr<rtc::Thread> signaling_thread_;
 public:
-    PeerDataChannelClient(): PeerClient("DataChannelClient") {
+    PeerVideoClient(): PeerClient("VideoClient") {
 
     }
 
-    virtual ~PeerDataChannelClient() {
+    virtual ~PeerVideoClient() {
         if (data_channel_) {
             data_channel_->Close();
             data_channel_ = nullptr;
@@ -162,7 +162,7 @@ public:
             signaling_thread_->Stop();
             signaling_thread_ = nullptr;
         }
-        logger_->info("PeerDataChannelClient deleted");
+        logger_->info("PeerVideoClient deleted");
     }
 
     rtc::scoped_refptr<CapturerTrackSource> CreateCapturerTrackSource() {
@@ -664,15 +664,15 @@ public:
 
 int main(int argc, char* argv[]) {
 
-    auto logger = spdlog::stdout_color_mt("PeerDataChannel");
+    auto logger = spdlog::stdout_color_mt("PeerVideo");
     absl::SetProgramUsageMessage(
       "Example usage: ./peer_datachanenl_client --server=localhost --port=5000\n");
     absl::ParseCommandLine(argc, argv);
 
-    logger->info("Starting PeerDataChannelClient");
+    logger->info("Starting PeerVideoClient");
     // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
 
-    auto client = rtc::make_ref_counted<PeerDataChannelClient>();
+    auto client = rtc::make_ref_counted<PeerVideoClient>();
 
     rtc::InitializeSSL();
 
