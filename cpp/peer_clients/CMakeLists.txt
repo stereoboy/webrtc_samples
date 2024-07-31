@@ -176,6 +176,92 @@ else()
 endif()
 
 ################################################################################################################
+# WebRTC Sample for Audio
+#
+add_executable(peer_audio_client
+    src/peer_audio_client.cpp
+    # ${webrtc_DIR}/test/vcm_capturer.cc
+    # ${webrtc_DIR}/test/platform_video_capturer.cc
+    ${PRECOMPILED_OBJS}
+)
+
+# #linking library directory
+target_link_directories(peer_audio_client PUBLIC
+    ${llvm_BUILD_DIR}/lib/
+)
+
+target_include_directories(
+    peer_audio_client PUBLIC
+    ${llvm_BUILD_DIR}/include/c++/v1
+    lib/socket.io-client-cpp/src
+    lib/socket.io-client-cpp/lib/asio/asio/include
+    ${webrtc_DIR}/third_party/abseil-cpp
+    include
+)
+
+target_compile_definitions(
+    peer_audio_client PUBLIC
+    _LIBCPP_ENABLE_SAFE_MODE=1
+    _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+    _LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS
+    # _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+    # CR_LIBCXX_REVISION=7cf98622abaf832e2d4784889ebc69d5b6fde4d8
+    WEBRTC_POSIX
+    WEBRTC_LINUX
+    # ASIO_STANDALONE
+)
+
+target_compile_options(
+    peer_audio_client PUBLIC
+    -Wno-undefined-bool-conversion -Wno-tautological-undefined-compare -Wno-trigraphs
+    -gsimple-template-names
+    # -stdlib=libc++
+    #---------------------------------------------------------
+    # for socket.io-client-cpp
+    # -fno-exceptions   // error: cannot use 'throw' with exceptions disabled
+    # -fno-rtti         // error: use of typeid requires -frtti
+    -fno-rtti
+    #---------------------------------------------------------
+    -nostdinc++
+    # -isystem${webrtc_DIR}/third_party/libc++/src/include
+    # -isystem${webrtc_DIR}/third_party/libc++abi/src/include
+    # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
+    -fvisibility-inlines-hidden -Wnon-virtual-dtor -Woverloaded-virtual
+)
+
+target_link_options(
+    peer_audio_client PUBLIC
+    -Werror -fuse-ld=lld-18
+    -Wl,--fatal-warnings -Wl,--build-id -fPIC -Wl,-z,noexecstack
+    -Wl,-z,relro -Wl,-z,now -Wl,--color-diagnostics -Wl,--undefined-version
+    -Wl,--no-call-graph-profile-sort -m64 -no-canonical-prefixes -Wl,--gdb-index -rdynamic -Wl,-z,defs
+    -Wl,--as-needed -nostdlib++
+    # -Wl,--as-needed -stdlib=libc++
+    # --sysroot=${webrtc_DIR}/build/linux/debian_bullseye_amd64-sysroot
+)
+
+target_link_libraries(
+    peer_audio_client PUBLIC
+    c++
+    c++abi
+    dl
+    webrtc
+    # sioclient_tls
+    sioclient
+    spdlog::spdlog
+    ${X11_LIBRARIES} # Add the X11 library
+    ${GLIB_LIBRARIES}
+    ${GIO_LIBRARIES}
+    rt
+)
+
+if (CMAKE_THREAD_LIBS_INIT)
+    target_link_libraries(peer_audio_client PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+else()
+    target_link_libraries(peer_audio_client PUBLIC pthread)
+endif()
+
+################################################################################################################
 # WebRTC Sample for Video
 #
 file(GLOB_RECURSE TEST_OBJS
