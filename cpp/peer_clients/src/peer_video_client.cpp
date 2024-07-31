@@ -79,25 +79,32 @@ public:
 class CapturerTrackSource : public webrtc::VideoTrackSource {
 
 public:
-    // static rtc::scoped_refptr<CapturerTrackSource> Create() {
-    //     const size_t kWidth = 640;
-    //     const size_t kHeight = 480;
-    //     const size_t kFps = 30;
-    //     std::unique_ptr<webrtc::test::VcmCapturer> capturer;
-    //     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
-    //         webrtc::VideoCaptureFactory::CreateDeviceInfo());
-    //     if (!info) {
-    //         return nullptr;
-    //     }
-    //     int num_devices = info->NumberOfDevices();
-    //     for (int i = 0; i < num_devices; ++i) {
-    //         capturer = absl::WrapUnique(webrtc::test::VcmCapturer::Create(kWidth, kHeight, kFps, i));
-    //         if (capturer) {
-    //             return rtc::make_ref_counted<CapturerTrackSource>(std::move(capturer));
-    //         }
-    //     }
-    //     return nullptr;
-    // }
+    static rtc::scoped_refptr<CapturerTrackSource> Create() {
+        auto logger = spdlog::stdout_color_mt("CapturerTrackSource");
+
+        const size_t kWidth = 640;
+        const size_t kHeight = 480;
+        const size_t kFps = 30;
+        std::unique_ptr<webrtc::test::VcmCapturer> capturer;
+        std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
+        if (!info) {
+            return nullptr;
+        }
+        int num_devices = info->NumberOfDevices();
+        for (int i = 0; i < num_devices; ++i) {
+            char device_name[256];
+            char unique_name[256];
+            char product_name[256];
+            info->GetDeviceName(i, device_name, sizeof(device_name), unique_name, sizeof(unique_name), product_name, sizeof(product_name));
+            // logger->info("\t[{}] Device Name: {}, Unique Name: {}, Product Name: {}", i, device_name, unique_name, product_name);
+            logger->info("Try to create VideoTrackSource from Device[{}]({}, {})", i, device_name, unique_name, product_name);
+            capturer = absl::WrapUnique(webrtc::test::VcmCapturer::Create(kWidth, kHeight, kFps, i));
+            if (capturer) {
+                return rtc::make_ref_counted<CapturerTrackSource>(std::move(capturer));
+            }
+        }
+        return nullptr;
+    }
 
 protected:
     explicit CapturerTrackSource(std::unique_ptr<webrtc::test::VcmCapturer> capturer)
@@ -576,7 +583,7 @@ public:
             logger_->info("\t[{}] Device Name: {}, Unique Name: {}", i, device_name, unique_name, product_name);
         }
 
-        rtc::scoped_refptr<CapturerTrackSource> video_device = CreateCapturerTrackSource();
+        rtc::scoped_refptr<CapturerTrackSource> video_device = CapturerTrackSource::Create();
         if (!video_device) {
             logger_->error("Failed to create VideoTrackSource ");
             return false;
