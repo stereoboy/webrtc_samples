@@ -10,6 +10,8 @@
 #include <api/media_stream_interface.h>
 #include <api/peer_connection_interface.h>
 
+#include "api/task_queue/default_task_queue_factory.h"
+
 #include <api/peer_connection_interface.h>
 #include <api/audio/audio_mixer.h>
 #include <api/audio_codecs/audio_decoder_factory.h>
@@ -35,7 +37,9 @@
 #include <absl/flags/parse.h>
 #include <absl/flags/usage.h>
 
-ABSL_FLAG(std::string, server, "localhost", "The server to connect to.");
+ABSL_FLAG(bool, list_devices,       false, "List Audio Devices only, No additional Test");
+
+ABSL_FLAG(std::string, server, "localhost",     "The server to connect to.");
 ABSL_FLAG(int,
           port,
           5000,
@@ -361,6 +365,38 @@ public:
         logger_->info("<<< query-peer-type");
     }
 
+    void list_audio_devices(void) {
+        rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device_module =
+            webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kPlatformDefaultAudio, webrtc::CreateDefaultTaskQueueFactory(nullptr).get());
+
+        if (audio_device_module->Init() < 0) {
+            logger_->error("Failed to initialize the audio device module");
+            return;
+        }
+        {
+            int16_t num_devices = audio_device_module->PlayoutDevices();
+            logger_->info("Playout Devices: {}", num_devices);
+
+            for (int16_t i = 0; i < num_devices; ++i) {
+                char name[webrtc::kAdmMaxDeviceNameSize];
+                char guid[webrtc::kAdmMaxGuidSize];
+                audio_device_module->PlayoutDeviceName(i, name, guid);
+                logger_->info("\t[{}] {} (guid={})", i, name, guid);
+            }
+        }
+        {
+            int16_t num_devices = audio_device_module->RecordingDevices();
+            logger_->info("Recording Devices: {}", num_devices);
+
+            for (int16_t i = 0; i < num_devices; ++i) {
+                char name[webrtc::kAdmMaxDeviceNameSize];
+                char guid[webrtc::kAdmMaxGuidSize];
+                audio_device_module->RecordingDeviceName(i, name, guid);
+                logger_->info("\t[{}] {} (guid={})", i, name, guid);
+            }
+        }
+    }
+
     bool init_webrtc(void) {
         webrtc::PeerConnectionInterface::IceServer ice_server;
         ice_server.uri = "stun:stun.l.google.com:19302";
@@ -390,6 +426,7 @@ public:
             webrtc::CreateBuiltinAudioDecoderFactory(),
             nullptr /* video_encoder_factory */, nullptr /* video_decoder_factory */,
             nullptr /* audio_mixer */, nullptr /* audio_processing */);
+        logger_->info("PeerConnectionFactory created successfully.");
 #endif
 
         webrtc::PeerConnectionDependencies pc_dependencies(this);
@@ -481,6 +518,11 @@ int main(int argc, char* argv[]) {
     // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
 
     auto client = rtc::make_ref_counted<PeerAudioClient>();
+
+    if (absl::GetFlag(FLAGS_list_devices)) {
+        client->list_audio_devices();
+        return 0;
+    }
 
     rtc::InitializeSSL();
 
