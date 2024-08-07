@@ -8,15 +8,12 @@
 // #include <asio/ssl.hpp>
 
 #include <api/media_stream_interface.h>
-#include <api/peer_connection_interface.h>
 
 #include <api/peer_connection_interface.h>
-#include <api/audio/audio_mixer.h>
 #include <api/audio_codecs/audio_decoder_factory.h>
 #include <api/audio_codecs/audio_encoder_factory.h>
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
-#include <api/audio_options.h>
 
 #include <api/video_codecs/video_decoder_factory.h>
 #include <api/video_codecs/video_decoder_factory_template.h>
@@ -31,8 +28,6 @@
 #include <api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h>
 #include <api/video_codecs/video_encoder_factory_template_open_h264_adapter.h>
 
-#include <modules/audio_device/include/audio_device.h>
-#include <modules/audio_processing/include/audio_processing.h>
 #include <modules/video_capture/video_capture.h>
 #include <modules/video_capture/video_capture_factory.h>
 
@@ -504,20 +499,6 @@ public:
             return false;  // Already added tracks.
         }
 
-        cricket::AudioOptions audio_options;
-        logger_->info("audio_options={}", audio_options.ToString());
-        rtc::scoped_refptr<webrtc::AudioSourceInterface> audio_source = peer_connection_factory_->CreateAudioSource(audio_options);
-        rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
-            peer_connection_factory_->CreateAudioTrack("audio_label", audio_source.get())
-        );
-        auto result_or_error = peer_connection_->AddTrack(audio_track, {"stream_id"});
-        if (!result_or_error.ok()) {
-            logger_->error("Failed to add audio track to PeerConnection: {}", result_or_error.error().message());
-            return false;
-        }
-
-        logger_->info("Add audio track successfully.");
-
         std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
         if (!info) {
             logger_->error("Failed to create VideoCaptureFactory::DeviceInfo");
@@ -540,7 +521,7 @@ public:
             return false;
         }
         rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(peer_connection_factory_->CreateVideoTrack(video_device, "video_label"));
-        result_or_error = peer_connection_->AddTrack(video_track, {"stream_id"});
+        auto result_or_error = peer_connection_->AddTrack(video_track, {"stream_id"});
         if (!result_or_error.ok()) {
             logger_->error("Failed to add video track to PeerConnection: {}", result_or_error.error().message());
         }
