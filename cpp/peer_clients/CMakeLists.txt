@@ -54,11 +54,9 @@ find_package(X11 REQUIRED)
 # find_package(spdlog REQUIRED)
 # find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
+pkg_search_module(LIBPULSE REQUIRED libpulse)
 pkg_search_module(GLIB REQUIRED glib-2.0)
 pkg_search_module(GIO REQUIRED gio-2.0)
-message(STATUS "GLIB_LDFLAGS: ${GLIB_LDFLAGS}")
-message(STATUS "GIO_LDFLAGS: ${GIO_LDFLAGS}")
-
 
 #include_directories(
 #  ${webrtc_DIR}
@@ -248,6 +246,7 @@ target_link_libraries(
     sioclient
     spdlog::spdlog
     ${X11_LIBRARIES} # Add the X11 library
+    ${LIBPULSE_LIBRARIES} # Add the PulseAudio library
     rt
 )
 

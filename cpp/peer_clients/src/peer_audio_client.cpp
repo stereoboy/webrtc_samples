@@ -7,6 +7,8 @@
 // #include <asio.hpp>
 // #include <asio/ssl.hpp>
 
+#include <pulse/pulseaudio.h>
+
 #include <api/media_stream_interface.h>
 #include <api/peer_connection_interface.h>
 
@@ -36,6 +38,29 @@
 #include <absl/flags/flag.h>
 #include <absl/flags/parse.h>
 #include <absl/flags/usage.h>
+
+#define _(String) (String)
+
+static inline const char *pa_yes_no(bool b) {
+    return b ? "yes" : "no";
+}
+
+static inline const char *pa_yes_no_localised(bool b) {
+    return b ? _("yes") : _("no");
+}
+
+static inline const char *pa_strnull(const char *x) {
+    return x ? x : "(null)";
+}
+
+static inline const char *pa_strempty(const char *x) {
+    return x ? x : "";
+}
+
+static inline const char *pa_strna(const char *x) {
+    return x ? x : "n/a";
+}
+
 
 ABSL_FLAG(bool, list_devices,       false, "List Audio Devices only, No additional Test");
 
@@ -74,8 +99,15 @@ class PeerAudioClient : public PeerClient,
     std::unique_ptr<rtc::Thread> signaling_thread_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
-
+    rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device_module_ = nullptr;
     // std::unique_ptr<rtc::Thread> signaling_thread_;
+
+    std::atomic_bool                pa_context_initialized_ = {false};
+    std::atomic_bool                pa_operation_done_ = {false};
+    pa_context                      *pa_context_ = nullptr;
+    pa_threaded_mainloop            *pa_mainloop_ = nullptr;
+    pa_mainloop_api                 *pa_mainloop_api_ = nullptr;
+
 public:
     PeerAudioClient(): PeerClient("AudioClient") {
 
@@ -365,7 +397,353 @@ public:
         logger_->info("<<< query-peer-type");
     }
 
+    static void context_drain_complete(pa_context *c, void *userdata) {
+        pa_context_disconnect(c);
+    }
+
+    void drain(pa_context *c) {
+        pa_operation *o;
+
+        if (!(o = pa_context_drain(c, context_drain_complete, NULL)))
+            pa_context_disconnect(c);
+        else
+            pa_operation_unref(o);
+    }
+
+    void complete_action(pa_context *c) {
+        drain(c);
+    }
+
+    const char* get_available_str(int available) {
+        switch (available) {
+            case PA_PORT_AVAILABLE_UNKNOWN: return _("availability unknown");
+            case PA_PORT_AVAILABLE_YES: return _("available");
+            case PA_PORT_AVAILABLE_NO: return _("not available");
+        }
+
+        // pa_assert_not_reached();
+        abort();
+    }
+
+    const char* get_device_port_type(unsigned int type) {
+        static char buf[32];
+        switch (type) {
+        case PA_DEVICE_PORT_TYPE_UNKNOWN: return _("Unknown");
+        case PA_DEVICE_PORT_TYPE_AUX: return _("Aux");
+        case PA_DEVICE_PORT_TYPE_SPEAKER: return _("Speaker");
+        case PA_DEVICE_PORT_TYPE_HEADPHONES: return _("Headphones");
+        case PA_DEVICE_PORT_TYPE_LINE: return _("Line");
+        case PA_DEVICE_PORT_TYPE_MIC: return _("Mic");
+        case PA_DEVICE_PORT_TYPE_HEADSET: return _("Headset");
+        case PA_DEVICE_PORT_TYPE_HANDSET: return _("Handset");
+        case PA_DEVICE_PORT_TYPE_EARPIECE: return _("Earpiece");
+        case PA_DEVICE_PORT_TYPE_SPDIF: return _("SPDIF");
+        case PA_DEVICE_PORT_TYPE_HDMI: return _("HDMI");
+        case PA_DEVICE_PORT_TYPE_TV: return _("TV");
+        case PA_DEVICE_PORT_TYPE_RADIO: return _("Radio");
+        case PA_DEVICE_PORT_TYPE_VIDEO: return _("Video");
+        case PA_DEVICE_PORT_TYPE_USB: return _("USB");
+        case PA_DEVICE_PORT_TYPE_BLUETOOTH: return _("Bluetooth");
+        case PA_DEVICE_PORT_TYPE_PORTABLE: return _("Portable");
+        case PA_DEVICE_PORT_TYPE_HANDSFREE: return _("Handsfree");
+        case PA_DEVICE_PORT_TYPE_CAR: return _("Car");
+        case PA_DEVICE_PORT_TYPE_HIFI: return _("HiFi");
+        case PA_DEVICE_PORT_TYPE_PHONE: return _("Phone");
+        case PA_DEVICE_PORT_TYPE_NETWORK: return _("Network");
+        case PA_DEVICE_PORT_TYPE_ANALOG: return _("Analog");
+        }
+        snprintf(buf, sizeof(buf), "%s-%u", _("Unknown"), type);
+        return buf;
+    }
+
+    static void get_source_info_callback(pa_context *c, const pa_source_info *i, int is_last, void *userdata) {
+        static_cast<PeerAudioClient *>(userdata)->get_source_info_callback_handler(c, i, is_last);
+    }
+
+    void get_source_info_callback_handler(pa_context *c, const pa_source_info *i, int is_last) {
+
+        static const char *state_table[] = {
+            [1+PA_SOURCE_INVALID_STATE] = "n/a",
+            [1+PA_SOURCE_RUNNING] = "RUNNING",
+            [1+PA_SOURCE_IDLE] = "IDLE",
+            [1+PA_SOURCE_SUSPENDED] = "SUSPENDED"
+        };
+
+        char
+            s[PA_SAMPLE_SPEC_SNPRINT_MAX],
+            cv[PA_CVOLUME_SNPRINT_VERBOSE_MAX],
+            v[PA_VOLUME_SNPRINT_VERBOSE_MAX],
+            cm[PA_CHANNEL_MAP_SNPRINT_MAX],
+            f[PA_FORMAT_INFO_SNPRINT_MAX];
+        char *pl;
+
+        if (is_last < 0) {
+            logger_->error("Failed to get source information: {}"), pa_strerror(pa_context_errno(c));
+            pa_mainloop_api_->quit(pa_mainloop_api_, 1);
+            return;
+        }
+
+        if (is_last) {
+            printf(_(" [ END ]\n"));
+            // complete_action(pa_context_);
+            pa_threaded_mainloop_signal(pa_mainloop_, 0);
+            return;
+        }
+
+        assert(i);
+
+        // if (nl && !short_list_format && format == TEXT)
+        //     printf("\n");
+        // nl = true;
+
+        char *sample_spec = pa_sample_spec_snprint(s, sizeof(s), &i->sample_spec);
+        // if (short_list_format) {
+        {
+            {
+                printf("  %u\t%s\t%s\t%s\t%s\n",
+                i->index,
+                i->name,
+                pa_strnull(i->driver),
+                sample_spec,
+                state_table[1+i->state]);
+            }
+            return;
+        }
+
+        char *channel_map = pa_channel_map_snprint(cm, sizeof(cm), &i->channel_map);
+        float volume_balance = pa_cvolume_get_balance(&i->volume, &i->channel_map);
+
+        {
+            printf(_("Source #%u\n"
+                    "\tState: %s\n"
+                    "\tName: %s\n"
+                    "\tDescription: %s\n"
+                    "\tDriver: %s\n"
+                    "\tSample Specification: %s\n"
+                    "\tChannel Map: %s\n"
+                    "\tOwner Module: %u\n"
+                    "\tMute: %s\n"
+                    "\tVolume: %s\n"
+                    "\t        balance %0.2f\n"
+                    "\tBase Volume: %s\n"
+                    "\tMonitor of Sink: %s\n"
+                    "\tLatency: %0.0f usec, configured %0.0f usec\n"
+                    "\tFlags: %s%s%s%s%s%s\n"
+                    "\tProperties:\n\t\t%s\n"),
+                i->index,
+                state_table[1+i->state],
+                i->name,
+                pa_strnull(i->description),
+                pa_strnull(i->driver),
+                sample_spec,
+                channel_map,
+                i->owner_module,
+                pa_yes_no_localised(i->mute),
+                pa_cvolume_snprint_verbose(cv, sizeof(cv), &i->volume, &i->channel_map, i->flags & PA_SOURCE_DECIBEL_VOLUME),
+                volume_balance,
+                pa_volume_snprint_verbose(v, sizeof(v), i->base_volume, i->flags & PA_SOURCE_DECIBEL_VOLUME),
+                i->monitor_of_sink_name ? i->monitor_of_sink_name : _("n/a"),
+                (double) i->latency, (double) i->configured_latency,
+                i->flags & PA_SOURCE_HARDWARE ? "HARDWARE " : "",
+                i->flags & PA_SOURCE_NETWORK ? "NETWORK " : "",
+                i->flags & PA_SOURCE_HW_MUTE_CTRL ? "HW_MUTE_CTRL " : "",
+                i->flags & PA_SOURCE_HW_VOLUME_CTRL ? "HW_VOLUME_CTRL " : "",
+                i->flags & PA_SOURCE_DECIBEL_VOLUME ? "DECIBEL_VOLUME " : "",
+                i->flags & PA_SOURCE_LATENCY ? "LATENCY " : "",
+                pl = pa_proplist_to_string_sep(i->proplist, "\n\t\t"));
+
+            if (i->ports) {
+                pa_source_port_info **p;
+
+                printf(_("\tPorts:\n"));
+                for (p = i->ports; *p; p++)
+                    printf(_("\t\t%s: %s (type: %s, priority: %u%s%s, %s)\n"),
+                            (*p)->name, (*p)->description, get_device_port_type((*p)->type),
+                            (*p)->priority, (*p)->availability_group ? _(", availability group: ") : "",
+                            (*p)->availability_group ?: "", get_available_str((*p)->available));
+            }
+
+            if (i->active_port)
+                printf(_("\tActive Port: %s\n"),
+                    i->active_port->name);
+
+            if (i->formats) {
+                uint8_t j;
+
+                printf(_("\tFormats:\n"));
+                for (j = 0; j < i->n_formats; j++)
+                    printf("\t\t%s\n", pa_format_info_snprint(f, sizeof(f), i->formats[j]));
+            }
+        }
+
+        pa_xfree(pl);
+    }
+
+    static void get_sink_info_callback(pa_context *c, const pa_sink_info *i, int is_last, void *userdata) {
+        static_cast<PeerAudioClient *>(userdata)->get_sink_info_callback_handler(c, i, is_last);
+    }
+
+    void get_sink_info_callback_handler(pa_context *c, const pa_sink_info *i, int is_last) {
+
+        static const char *state_table[] = {
+            [1+PA_SINK_INVALID_STATE] = "n/a",
+            [1+PA_SINK_RUNNING] = "RUNNING",
+            [1+PA_SINK_IDLE] = "IDLE",
+            [1+PA_SINK_SUSPENDED] = "SUSPENDED"
+        };
+
+        char
+            s[PA_SAMPLE_SPEC_SNPRINT_MAX],
+            cv[PA_CVOLUME_SNPRINT_VERBOSE_MAX],
+            v[PA_VOLUME_SNPRINT_VERBOSE_MAX],
+            cm[PA_CHANNEL_MAP_SNPRINT_MAX],
+            f[PA_FORMAT_INFO_SNPRINT_MAX];
+        char *pl;
+
+        if (is_last < 0) {
+            logger_->error("Failed to get source information: {}"), pa_strerror(pa_context_errno(c));
+            pa_mainloop_api_->quit(pa_mainloop_api_, 1);
+            return;
+        }
+
+        if (is_last) {
+            printf(_(" [ END ]\n"));
+            // complete_action(pa_context_);
+            pa_threaded_mainloop_signal(pa_mainloop_, 0);
+            return;
+        }
+
+        assert(i);
+
+        // if (nl && !short_list_format && format == TEXT)
+        //     printf("\n");
+        // nl = true;
+
+        char *sample_spec = pa_sample_spec_snprint(s, sizeof(s), &i->sample_spec);
+        // if (short_list_format) {
+        {
+            {
+                printf("  %u\t%s\t%s\t%s\t%s\n",
+                i->index,
+                i->name,
+                pa_strnull(i->driver),
+                sample_spec,
+                state_table[1+i->state]);
+            }
+            return;
+        }
+
+        char *channel_map = pa_channel_map_snprint(cm, sizeof(cm), &i->channel_map);
+        float volume_balance = pa_cvolume_get_balance(&i->volume, &i->channel_map);
+
+        {
+            printf(_("Sink #%u\n"
+                "\tState: %s\n"
+                "\tName: %s\n"
+                "\tDescription: %s\n"
+                "\tDriver: %s\n"
+                "\tSample Specification: %s\n"
+                "\tChannel Map: %s\n"
+                "\tOwner Module: %u\n"
+                "\tMute: %s\n"
+                "\tVolume: %s\n"
+                "\t        balance %0.2f\n"
+                "\tBase Volume: %s\n"
+                "\tMonitor Source: %s\n"
+                "\tLatency: %0.0f usec, configured %0.0f usec\n"
+                "\tFlags: %s%s%s%s%s%s%s\n"
+                "\tProperties:\n\t\t%s\n"),
+            i->index,
+            state_table[1+i->state],
+            i->name,
+            pa_strnull(i->description),
+            pa_strnull(i->driver),
+            sample_spec,
+            channel_map,
+            i->owner_module,
+            pa_yes_no_localised(i->mute),
+            pa_cvolume_snprint_verbose(cv, sizeof(cv), &i->volume, &i->channel_map, i->flags & PA_SINK_DECIBEL_VOLUME),
+            volume_balance,
+            pa_volume_snprint_verbose(v, sizeof(v), i->base_volume, i->flags & PA_SINK_DECIBEL_VOLUME),
+            pa_strnull(i->monitor_source_name),
+            (double) i->latency, (double) i->configured_latency,
+            i->flags & PA_SINK_HARDWARE ? "HARDWARE " : "",
+            i->flags & PA_SINK_NETWORK ? "NETWORK " : "",
+            i->flags & PA_SINK_HW_MUTE_CTRL ? "HW_MUTE_CTRL " : "",
+            i->flags & PA_SINK_HW_VOLUME_CTRL ? "HW_VOLUME_CTRL " : "",
+            i->flags & PA_SINK_DECIBEL_VOLUME ? "DECIBEL_VOLUME " : "",
+            i->flags & PA_SINK_LATENCY ? "LATENCY " : "",
+            i->flags & PA_SINK_SET_FORMATS ? "SET_FORMATS " : "",
+            pl = pa_proplist_to_string_sep(i->proplist, "\n\t\t"));
+
+            if (i->ports) {
+                pa_sink_port_info **p;
+
+                printf(_("\tPorts:\n"));
+                for (p = i->ports; *p; p++)
+                    printf(_("\t\t%s: %s (type: %s, priority: %u%s%s, %s)\n"),
+                            (*p)->name, (*p)->description, get_device_port_type((*p)->type),
+                            (*p)->priority, (*p)->availability_group ? _(", availability group: ") : "",
+                            (*p)->availability_group ?: "", get_available_str((*p)->available));
+            }
+
+            if (i->active_port)
+                printf(_("\tActive Port: %s\n"),
+                    i->active_port->name);
+
+            if (i->formats) {
+                uint8_t j;
+
+                printf(_("\tFormats:\n"));
+                for (j = 0; j < i->n_formats; j++)
+                    printf("\t\t%s\n", pa_format_info_snprint(f, sizeof(f), i->formats[j]));
+            }
+        }
+
+        pa_xfree(pl);
+    }
+
+    static void context_state_callback(pa_context *c, void *userdata) {
+        static_cast<PeerAudioClient *>(userdata)->context_state_callback_handler(c);
+    }
+
+    void context_state_callback_handler(pa_context *c) {
+        pa_operation *o = NULL;
+
+        assert(c);
+
+        switch (pa_context_get_state(c)) {
+            case PA_CONTEXT_CONNECTING:
+            case PA_CONTEXT_AUTHORIZING:
+            case PA_CONTEXT_SETTING_NAME:
+                break;
+
+            case PA_CONTEXT_READY:
+                logger_->info("pa_context is ready");
+
+                // o = pa_context_get_source_info_list(c, get_source_info_callback, this);
+                // if (o) {
+                //     pa_operation_unref(o);
+                // }
+                pa_context_initialized_ = true;
+                break;
+
+            case PA_CONTEXT_TERMINATED:
+                logger_->info("pa_context is terminated");
+                pa_context_initialized_ = true;
+                pa_mainloop_api_->quit(pa_mainloop_api_, 0);
+                break;
+
+            case PA_CONTEXT_FAILED:
+            default:
+                pa_context_initialized_ = true;
+                logger_->error("Connection failure: {}", pa_strerror(pa_context_errno(c)));
+                pa_mainloop_api_->quit(pa_mainloop_api_, 1);
+        }
+    }
+
     void list_audio_devices(void) {
+#if 0
         rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device_module =
             webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kPlatformDefaultAudio, webrtc::CreateDefaultTaskQueueFactory(nullptr).get());
 
@@ -395,6 +773,102 @@ public:
                 logger_->info("\t[{}] {} (guid={})", i, name, guid);
             }
         }
+        if (audio_device_module->Terminate() < 0) {
+            logger_->error("Failed to terminate the audio device module");
+            return;
+        }
+#else
+
+        logger_->info("Starting to list pulse audio devices.");
+        pa_operation *o = NULL;
+        static pa_proplist *proplist = NULL;
+        int ret = 1, c;
+        char *server = NULL;
+
+        proplist = pa_proplist_new();
+
+        if (pa_proplist_sets(proplist, PA_PROP_APPLICATION_NAME, "peer_audio_client") < 0) {
+            logger_->error("pa_proplist_sets() failed");
+            goto quit;
+        }
+
+        if (!(pa_mainloop_ = pa_threaded_mainloop_new())) {
+            logger_->error("pa_mainloop_new() failed");
+            goto quit;
+        }
+
+        if (pa_threaded_mainloop_start(pa_mainloop_) != PA_OK) {
+            logger_->error("pa_threaded_mainloop_start() failed");
+            goto quit;
+        }
+
+        pa_mainloop_api_ = pa_threaded_mainloop_get_api(pa_mainloop_);
+
+        if (pa_signal_init(pa_mainloop_api_) < 0) {
+            logger_->error("pa_signal_init() failed");
+            goto quit;
+        }
+
+        if (!(pa_context_ = pa_context_new_with_proplist(pa_mainloop_api_, NULL, proplist))) {
+            logger_->error("pa_context_new() failed.");
+            goto quit;
+        }
+        logger_->info("pa_constext created successfully.");
+
+        pa_context_set_state_callback(pa_context_, PeerAudioClient::context_state_callback, this);
+        if (pa_context_connect(pa_context_, server, PA_CONTEXT_NOFLAGS, NULL) < 0) {
+            logger_->error("pa_context_connect() failed: %s"), pa_strerror(pa_context_errno(pa_context_));
+            goto quit;
+        }
+        logger_->info("connnect to server successfully.");
+
+        while (!pa_context_initialized_) {
+            pa_threaded_mainloop_wait(pa_mainloop_);
+        }
+
+        logger_->info("-[Source Info List]-----------------------------------------------------------------");
+        o = pa_context_get_source_info_list(pa_context_, get_source_info_callback, this);
+        if (!o) {
+            logger_->error("pa_context_get_source_info_list failed");
+            goto quit;
+        }
+        while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+            pa_threaded_mainloop_wait(pa_mainloop_);
+        }
+        pa_operation_unref(o);
+
+        logger_->info("-[Sink Info List]------------------------------------------------------------------");
+        o = pa_context_get_sink_info_list(pa_context_, get_sink_info_callback, this);
+        if (!o) {
+            logger_->error("pa_context_get_source_info_list failed");
+            goto quit;
+        }
+        while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+            pa_threaded_mainloop_wait(pa_mainloop_);
+        }
+        pa_operation_unref(o);
+
+        // if (pa_mainloop_run(pa_mainloop_, &ret) < 0) {
+        //     logger_->error("pa_mainloop_run() failed.");
+        //     goto quit;
+        // }
+
+        drain(pa_context_);
+
+    quit:
+        if (pa_context_)
+            pa_context_unref(pa_context_);
+
+        if (pa_mainloop_) {
+            pa_signal_done();
+            pa_threaded_mainloop_free(pa_mainloop_);
+        }
+
+        pa_xfree(server);
+
+        if (proplist)
+            pa_proplist_free(proplist);
+#endif
     }
 
     bool init_webrtc(void) {
@@ -421,7 +895,7 @@ public:
         }
         peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
             nullptr /* network_thread */, nullptr /* worker_thread */,
-            signaling_thread_.get(), nullptr /* default_adm */,
+            signaling_thread_.get(), audio_device_module_ /* default_adm */,
             webrtc::CreateBuiltinAudioEncoderFactory(),
             webrtc::CreateBuiltinAudioDecoderFactory(),
             nullptr /* video_encoder_factory */, nullptr /* video_decoder_factory */,
