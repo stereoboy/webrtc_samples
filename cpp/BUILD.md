@@ -99,3 +99,44 @@ ninja -C build cxx cxxabi
 ```
 cmake  -DUSE_PRECOMPILED_WEBRTC=OFF .. && make -j
 ```
+
+### peer_audio_client
+* Pulseaudio
+  * https://freedesktop.org/software/pulseaudio/doxygen/index.html
+
+* Archlinux's Pulseaudio Wiki
+  * https://wiki.archlinux.org/title/PulseAudio
+
+* `libpulse`
+  ```
+  pa_context_get_sink_info_list
+
+  pa_context_get_source_info_list
+
+  pa_context_set_default_sink
+
+  pa_context_set_default_source
+  ```
+
+#### PulseAudio Setup for Linux
+  ```
+  pactl list sources
+  ```
+
+  ```
+  pactl list sinks
+  ```
+  ```
+  pactl info
+  ```
+  ```
+  $ pactl get-default-sink
+  alsa_output.pci-0000_00_1f.3.iec958-stereo
+  $ pactl list short sinks
+  1       alsa_output.pci-0000_00_1f.3.iec958-stereo      module-alsa-card.c      s16le 2ch 44100Hz       IDLE
+  84      alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1 module-alsa-card.c      s16le 2ch 44100Hz       IDLE
+  $ pactl set-default-sink alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1
+  $ pactl get-default-sink
+  alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1
+  ```
+  *

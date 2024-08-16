@@ -63,6 +63,8 @@ static inline const char *pa_strna(const char *x) {
 
 
 ABSL_FLAG(bool, list_devices,       false, "List Audio Devices only, No additional Test");
+ABSL_FLAG(int,  playout_device_id,      -1,      "Playout Device ID (Speaker) to play");
+ABSL_FLAG(int,  recording_device_id,    -1,      "Recording Device ID (Microphone) to record");
 
 ABSL_FLAG(std::string, server, "localhost",     "The server to connect to.");
 ABSL_FLAG(int,
@@ -87,6 +89,22 @@ public:
     }
 };
 
+struct PASourceInfo {
+    unsigned int    index;
+    std::string     name;
+    std::string     driver;
+    std::string     sample_spec;
+    std::string     state;
+};
+
+struct PASinkInfo {
+    unsigned int    index;
+    std::string     name;
+    std::string     driver;
+    std::string     sample_spec;
+    std::string     state;
+};
+
 class PeerAudioClient : public PeerClient,
                               public webrtc::PeerConnectionObserver,
                               public webrtc::CreateSessionDescriptionObserver
@@ -102,11 +120,14 @@ class PeerAudioClient : public PeerClient,
     rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device_module_ = nullptr;
     // std::unique_ptr<rtc::Thread> signaling_thread_;
 
-    std::atomic_bool                pa_context_initialized_ = {false};
-    std::atomic_bool                pa_operation_done_ = {false};
-    pa_context                      *pa_context_ = nullptr;
-    pa_threaded_mainloop            *pa_mainloop_ = nullptr;
-    pa_mainloop_api                 *pa_mainloop_api_ = nullptr;
+    std::atomic_bool                    pa_context_initialized_ = {false};
+    std::atomic_bool                    pa_operation_done_ = {false};
+    pa_context                          *pa_context_ = nullptr;
+    pa_threaded_mainloop                *pa_mainloop_ = nullptr;
+    pa_mainloop_api                     *pa_mainloop_api_ = nullptr;
+    bool                                pa_short_list_format_ = true;
+    std::vector<struct PASourceInfo>    pa_source_list_ = {};
+    std::vector<struct PASinkInfo>      pa_sink_list_ = {};
 
 public:
     PeerAudioClient(): PeerClient("AudioClient") {
@@ -397,6 +418,42 @@ public:
         logger_->info("<<< query-peer-type");
     }
 
+    void print_pa_source_list(void) {
+        logger_->info("-[Source Info List]-----------------------------------------------------------------");
+        for (int i = 0; i < pa_source_list_.size(); i++) {
+            // logger_->info("  [{}] {} {} {} {}", i,  pa_source_list_[i].name,
+            //                                         pa_source_list_[i].driver,
+            //                                         pa_source_list_[i].sample_spec,
+            //                                         pa_source_list_[i].state);
+            logger_->info("  [{}] {}", i,  pa_source_list_[i].name);
+        }
+        logger_->info("------------------------------------------------------------------------------------");
+    }
+
+    void print_pa_sink_list(void) {
+        logger_->info("-[Sink Info List]------------------------------------------------------------------");
+        for (int i = 0; i < pa_sink_list_.size(); i++) {
+            // logger_->info("  [{}] {} {} {} {}", i,  pa_sink_list_[i].name,
+            //                                         pa_sink_list_[i].driver,
+            //                                         pa_sink_list_[i].sample_spec,
+            //                                         pa_sink_list_[i].state);
+            logger_->info("  [{}] {}", i,  pa_sink_list_[i].name);
+        }
+        logger_->info("-----------------------------------------------------------------------------------");
+    }
+
+    static void simple_callback(pa_context *c, int success, void *userdata) {
+        static_cast<PeerAudioClient *>(userdata)->simple_callback_handler(c, success);
+    }
+
+    void simple_callback_handler(pa_context *c, int success) {
+        if (!success) {
+            logger_->error("Failure: {}", pa_strerror(pa_context_errno(c)));
+            pa_mainloop_api_->quit(pa_mainloop_api_, 1);
+            return;
+        }
+    }
+
     static void context_drain_complete(pa_context *c, void *userdata) {
         pa_context_disconnect(c);
     }
@@ -456,6 +513,59 @@ public:
         return buf;
     }
 
+    static void get_server_info_callback(pa_context *c, const pa_server_info *i, void *userdata) {
+        static_cast<PeerAudioClient *>(userdata)->get_server_info_callback_handler(c, i);
+    }
+
+    void get_server_info_callback_handler(pa_context *c, const pa_server_info *i) {
+        char ss[PA_SAMPLE_SPEC_SNPRINT_MAX], cm[PA_CHANNEL_MAP_SNPRINT_MAX];
+
+        if (!i) {
+            logger_->error("Failed to get server information: {}", pa_strerror(pa_context_errno(c)));
+            pa_mainloop_api_->quit(pa_mainloop_api_, 1);
+            return;
+        }
+
+        pa_sample_spec_snprint(ss, sizeof(ss), &i->sample_spec);
+        pa_channel_map_snprint(cm, sizeof(cm), &i->channel_map);
+
+        {
+            printf(_("Server String: %s\n"
+                "Library Protocol Version: %u\n"
+                "Server Protocol Version: %u\n"
+                "Is Local: %s\n"
+                "Client Index: %u\n"
+                "Tile Size: %zu\n"),
+                pa_context_get_server(c),
+                pa_context_get_protocol_version(c),
+                pa_context_get_server_protocol_version(c),
+                pa_yes_no_localised(pa_context_is_local(c)),
+                pa_context_get_index(c),
+                pa_context_get_tile_size(c, NULL));
+
+            printf(_("User Name: %s\n"
+                    "Host Name: %s\n"
+                    "Server Name: %s\n"
+                    "Server Version: %s\n"
+                    "Default Sample Specification: %s\n"
+                    "Default Channel Map: %s\n"
+                    "Default Sink: %s\n"
+                    "Default Source: %s\n"
+                    "Cookie: %04x:%04x\n"),
+                i->user_name,
+                i->host_name,
+                i->server_name,
+                i->server_version,
+                ss,
+                cm,
+                i->default_sink_name,
+                i->default_source_name,
+                i->cookie >> 16,
+                i->cookie & 0xFFFFU);
+        }
+        return;
+    }
+
     static void get_source_info_callback(pa_context *c, const pa_source_info *i, int is_last, void *userdata) {
         static_cast<PeerAudioClient *>(userdata)->get_source_info_callback_handler(c, i, is_last);
     }
@@ -497,10 +607,10 @@ public:
         // nl = true;
 
         char *sample_spec = pa_sample_spec_snprint(s, sizeof(s), &i->sample_spec);
-        // if (short_list_format) {
-        {
+        pa_source_list_.push_back({i->index, i->name, pa_strnull(i->driver), sample_spec, state_table[1+i->state]});
+        if (pa_short_list_format_) {
             {
-                printf("  %u\t%s\t%s\t%s\t%s\n",
+                printf(" %3u %-80s\t%s\t%s\t%s\n",
                 i->index,
                 i->name,
                 pa_strnull(i->driver),
@@ -620,10 +730,10 @@ public:
         // nl = true;
 
         char *sample_spec = pa_sample_spec_snprint(s, sizeof(s), &i->sample_spec);
-        // if (short_list_format) {
-        {
+        pa_sink_list_.push_back({i->index, i->name, pa_strnull(i->driver), sample_spec, state_table[1+i->state]});
+        if (pa_short_list_format_) {
             {
-                printf("  %u\t%s\t%s\t%s\t%s\n",
+                printf(" %3u %-80s\t%s\t%s\t%s\n",
                 i->index,
                 i->name,
                 pa_strnull(i->driver),
@@ -742,7 +852,7 @@ public:
         }
     }
 
-    void list_audio_devices(void) {
+    void list_pa_audio_devices(void) {
 #if 0
         rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device_module =
             webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kPlatformDefaultAudio, webrtc::CreateDefaultTaskQueueFactory(nullptr).get());
@@ -785,6 +895,9 @@ public:
         int ret = 1, c;
         char *server = NULL;
 
+        pa_source_list_.clear();
+        pa_sink_list_.clear();
+
         proplist = pa_proplist_new();
 
         if (pa_proplist_sets(proplist, PA_PROP_APPLICATION_NAME, "peer_audio_client") < 0) {
@@ -826,7 +939,17 @@ public:
             pa_threaded_mainloop_wait(pa_mainloop_);
         }
 
-        logger_->info("-[Source Info List]-----------------------------------------------------------------");
+        logger_->info("-[Server Info List]-----------------------------------------------------------------");
+        o = pa_context_get_server_info(pa_context_, get_server_info_callback, this);
+        if (!o) {
+            logger_->error("pa_context_get_server_info failed");
+            goto quit;
+        }
+        while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+            pa_threaded_mainloop_wait(pa_mainloop_);
+        }
+        pa_operation_unref(o);
+
         o = pa_context_get_source_info_list(pa_context_, get_source_info_callback, this);
         if (!o) {
             logger_->error("pa_context_get_source_info_list failed");
@@ -837,16 +960,19 @@ public:
         }
         pa_operation_unref(o);
 
-        logger_->info("-[Sink Info List]------------------------------------------------------------------");
+        print_pa_source_list();
+
         o = pa_context_get_sink_info_list(pa_context_, get_sink_info_callback, this);
         if (!o) {
-            logger_->error("pa_context_get_source_info_list failed");
+            logger_->error("pa_context_get_sink_info_list failed");
             goto quit;
         }
         while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
             pa_threaded_mainloop_wait(pa_mainloop_);
         }
         pa_operation_unref(o);
+
+        print_pa_sink_list();
 
         // if (pa_mainloop_run(pa_mainloop_, &ret) < 0) {
         //     logger_->error("pa_mainloop_run() failed.");
@@ -868,6 +994,217 @@ public:
 
         if (proplist)
             pa_proplist_free(proplist);
+#endif
+    }
+
+    int init_pa_audio_devices(int playout_device_id, int recording_device_id) {
+        logger_->info("init_pa_audio_devices({}, {})", playout_device_id, recording_device_id);
+
+#if 0
+        audio_device_module_ =
+            webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kPlatformDefaultAudio, webrtc::CreateDefaultTaskQueueFactory(nullptr).get());
+
+        if (audio_device_module_->Init() < 0) {
+            logger_->error("Failed to initialize the audio device module");
+            return -1;
+        }
+
+
+        {
+            if (audio_device_module_->SetPlayoutDevice(playout_device_id) != 0) {
+                logger_->error("Unable to set playout device.");
+                return -1;
+            }
+            if (audio_device_module_->InitSpeaker() != 0) {
+                logger_->error("Unable to access speaker.");
+            }
+
+            // Set number of channels
+            bool available = false;
+            if (audio_device_module_->StereoPlayoutIsAvailable(&available) != 0) {
+                logger_->error("Failed to query stereo playout.");
+            }
+            if (audio_device_module_->SetStereoPlayout(available) != 0) {
+                logger_->error("Failed to set stereo playout mode.");
+            }
+            int16_t num_devices = audio_device_module_->PlayoutDevices();
+            logger_->info("Playout Devices: {}", num_devices);
+
+            for (int16_t i = 0; i < num_devices; ++i) {
+                char name[webrtc::kAdmMaxDeviceNameSize];
+                char guid[webrtc::kAdmMaxGuidSize];
+                audio_device_module_->PlayoutDeviceName(i, name, guid);
+                logger_->info("\t[{}] {} (guid={})", i, name, guid);
+            }
+        }
+        {
+            if (audio_device_module_->SetRecordingDevice(recording_device_id) != 0) {
+                logger_->error("Unable to set recording device.");
+                return -1;
+            }
+            if (audio_device_module_->InitMicrophone() != 0) {
+                logger_->error("Unable to access microphone.");
+            }
+
+            // Set number of channels
+            bool available = false;
+            if (audio_device_module_->StereoRecordingIsAvailable(&available) != 0) {
+                logger_->error("Failed to query stereo recording.");
+            }
+            if (audio_device_module_->SetStereoRecording(available) != 0) {
+                logger_->error("Failed to set stereo recording mode.");
+            }
+            int16_t num_devices = audio_device_module_->RecordingDevices();
+            logger_->info("Recording Devices: {}", num_devices);
+
+            for (int16_t i = 0; i < num_devices; ++i) {
+                char name[webrtc::kAdmMaxDeviceNameSize];
+                char guid[webrtc::kAdmMaxGuidSize];
+                audio_device_module_->RecordingDeviceName(i, name, guid);
+                logger_->info("\t[{}] {} (guid={})", i, name, guid);
+            }
+        }
+        // if (audio_device_module_->Terminate() < 0) {
+        //     logger_->error("Failed to terminate the audio device module");
+        //     return -1;
+        // }
+
+        return 0;
+#else
+        logger_->info("Starting to init pulse audio devices.");
+        pa_operation *o = NULL;
+        static pa_proplist *proplist = NULL;
+        int ret = 1, c;
+        char *server = NULL;
+
+        pa_source_list_.clear();
+        pa_sink_list_.clear();
+
+        proplist = pa_proplist_new();
+
+        if (pa_proplist_sets(proplist, PA_PROP_APPLICATION_NAME, "peer_audio_client") < 0) {
+            logger_->error("pa_proplist_sets() failed");
+            goto quit;
+        }
+
+        if (!(pa_mainloop_ = pa_threaded_mainloop_new())) {
+            logger_->error("pa_mainloop_new() failed");
+            goto quit;
+        }
+
+        if (pa_threaded_mainloop_start(pa_mainloop_) != PA_OK) {
+            logger_->error("pa_threaded_mainloop_start() failed");
+            goto quit;
+        }
+
+        pa_mainloop_api_ = pa_threaded_mainloop_get_api(pa_mainloop_);
+
+        if (pa_signal_init(pa_mainloop_api_) < 0) {
+            logger_->error("pa_signal_init() failed");
+            goto quit;
+        }
+
+        if (!(pa_context_ = pa_context_new_with_proplist(pa_mainloop_api_, NULL, proplist))) {
+            logger_->error("pa_context_new() failed.");
+            goto quit;
+        }
+        logger_->info("pa_constext created successfully.");
+
+        pa_context_set_state_callback(pa_context_, PeerAudioClient::context_state_callback, this);
+        if (pa_context_connect(pa_context_, server, PA_CONTEXT_NOFLAGS, NULL) < 0) {
+            logger_->error("pa_context_connect() failed: %s"), pa_strerror(pa_context_errno(pa_context_));
+            goto quit;
+        }
+        logger_->info("connnect to server successfully.");
+
+        while (!pa_context_initialized_) {
+            pa_threaded_mainloop_wait(pa_mainloop_);
+        }
+
+        if (recording_device_id != -1) {
+            o = pa_context_get_source_info_list(pa_context_, get_source_info_callback, this);
+            if (!o) {
+                logger_->error("pa_context_get_source_info_list failed");
+                goto quit;
+            }
+            while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+                pa_threaded_mainloop_wait(pa_mainloop_);
+            }
+            pa_operation_unref(o);
+
+            print_pa_source_list();
+
+            if (recording_device_id >= pa_source_list_.size()) {
+                logger_->error("Invalid recording device id: {}", recording_device_id);
+                goto quit;
+            }
+
+            logger_->info("Set default source as <{}>", pa_source_list_[recording_device_id].name);
+            o = pa_context_set_default_source(pa_context_, pa_source_list_[recording_device_id].name.c_str(), simple_callback, this);
+            if (!o) {
+                logger_->error("pa_context_get_source_info_list failed");
+                goto quit;
+            }
+            while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+                pa_threaded_mainloop_wait(pa_mainloop_);
+            }
+            pa_operation_unref(o);
+        }
+
+        if (playout_device_id != -1) {
+            o = pa_context_get_sink_info_list(pa_context_, get_sink_info_callback, this);
+            if (!o) {
+                logger_->error("pa_context_get_source_info_list failed");
+                goto quit;
+            }
+            while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+                pa_threaded_mainloop_wait(pa_mainloop_);
+            }
+            pa_operation_unref(o);
+
+            print_pa_sink_list();
+
+            if (playout_device_id >= pa_sink_list_.size()) {
+                logger_->error("Invalid playout device id: {}", playout_device_id);
+                goto quit;
+            }
+
+            logger_->info("Set default sink as <{}>", pa_sink_list_[playout_device_id].name);
+            o = pa_context_set_default_sink(pa_context_, pa_sink_list_[playout_device_id].name.c_str(), simple_callback, this);
+            if (!o) {
+                logger_->error("pa_context_set_default_sink failed");
+                goto quit;
+            }
+            while (pa_operation_get_state(o) == PA_OPERATION_RUNNING) {
+                pa_threaded_mainloop_wait(pa_mainloop_);
+            }
+            pa_operation_unref(o);
+        }
+
+
+
+        // if (pa_mainloop_run(pa_mainloop_, &ret) < 0) {
+        //     logger_->error("pa_mainloop_run() failed.");
+        //     goto quit;
+        // }
+
+        drain(pa_context_);
+
+    quit:
+        if (pa_context_)
+            pa_context_unref(pa_context_);
+
+        if (pa_mainloop_) {
+            pa_signal_done();
+            pa_threaded_mainloop_free(pa_mainloop_);
+        }
+
+        pa_xfree(server);
+
+        if (proplist)
+            pa_proplist_free(proplist);
+
+        return 0;
 #endif
     }
 
@@ -994,8 +1331,13 @@ int main(int argc, char* argv[]) {
     auto client = rtc::make_ref_counted<PeerAudioClient>();
 
     if (absl::GetFlag(FLAGS_list_devices)) {
-        client->list_audio_devices();
+        client->list_pa_audio_devices();
         return 0;
+    }
+
+    if (absl::GetFlag(FLAGS_playout_device_id) != -1 || absl::GetFlag(FLAGS_recording_device_id) != -1) {
+        if (client->init_pa_audio_devices(absl::GetFlag(FLAGS_playout_device_id), absl::GetFlag(FLAGS_recording_device_id)) < 0)
+            return 0;
     }
 
     rtc::InitializeSSL();
