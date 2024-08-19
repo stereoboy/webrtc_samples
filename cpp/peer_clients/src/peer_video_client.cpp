@@ -8,7 +8,6 @@
 // #include <asio/ssl.hpp>
 
 #include <api/media_stream_interface.h>
-
 #include <api/peer_connection_interface.h>
 #include <api/audio_codecs/audio_decoder_factory.h>
 #include <api/audio_codecs/audio_encoder_factory.h>
@@ -47,6 +46,8 @@
 #include <absl/flags/flag.h>
 #include <absl/flags/parse.h>
 #include <absl/flags/usage.h>
+
+#include <gtk/gtk.h>
 
 ABSL_FLAG(std::string, server, "localhost", "The server to connect to.");
 ABSL_FLAG(int,
@@ -126,6 +127,15 @@ class PeerVideoClient : public PeerClient,
     webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
 
     // std::unique_ptr<rtc::Thread> signaling_thread_;
+
+    GtkWidget           *gtk3_window_ = nullptr;
+    GtkWidget           *gtk3_grid_ = nullptr;
+    GtkWidget           *gtk3_label_local_ = nullptr;
+    GtkWidget           *gtk3_drawing_area_local_ = nullptr;
+    GtkWidget           *gtk3_label_remote_ = nullptr;
+    GtkWidget           *gtk3_drawing_area_remote_ = nullptr;
+
+
 public:
     PeerVideoClient(): PeerClient("VideoClient") {
 
@@ -577,6 +587,71 @@ public:
         logger_->info("Added ICE Candidate: {}", candidate);
         return true;
     }
+
+    static gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data) {
+        return static_cast<PeerVideoClient *>(data)->draw_callback_handler(widget, cr);
+    }
+
+    gboolean draw_callback_handler (GtkWidget *widget, cairo_t *cr) {
+        guint width, height;
+        GdkRGBA color;
+        GtkStyleContext *context;
+
+        context = gtk_widget_get_style_context (widget);
+
+        width = gtk_widget_get_allocated_width (widget);
+        height = gtk_widget_get_allocated_height (widget);
+
+        gtk_render_background (context, cr, 0, 0, width, height);
+
+        cairo_arc (cr,
+                    width / 2.0, height / 2.0,
+                    MIN (width, height) / 2.0,
+                    0, 2 * G_PI);
+
+        gtk_style_context_get_color (context,
+                                    gtk_style_context_get_state (context),
+                                    &color);
+        gdk_cairo_set_source_rgba (cr, &color);
+
+        cairo_fill (cr);
+
+        return FALSE;
+    }
+
+    static void gtk3_window_activate_callback (GtkApplication* app, gpointer user_data) {
+        static_cast<PeerVideoClient*>(user_data)->gtk3_window_activate_callback_handler(app);
+    }
+
+    void gtk3_window_activate_callback_handler (GtkApplication* app) {
+
+        gtk3_window_ = gtk_application_window_new (app);
+
+        gtk3_label_local_ = gtk_label_new("local video");
+        gtk3_drawing_area_local_ = gtk_drawing_area_new ();
+        gtk_widget_set_size_request (gtk3_drawing_area_local_, 640, 480);
+        g_signal_connect (G_OBJECT (gtk3_drawing_area_local_), "draw", G_CALLBACK (draw_callback), this);
+        gtk3_label_remote_ = gtk_label_new("remote video");
+        gtk3_drawing_area_remote_ = gtk_drawing_area_new ();
+        gtk_widget_set_size_request (gtk3_drawing_area_remote_, 640, 480);
+        g_signal_connect (G_OBJECT (gtk3_drawing_area_remote_), "draw", G_CALLBACK (draw_callback), this);
+        gtk3_grid_ = gtk_grid_new();
+
+        gtk_grid_set_row_spacing(GTK_GRID(gtk3_grid_), 2);
+        gtk_grid_set_column_spacing(GTK_GRID(gtk3_grid_), 2);
+
+        // gtk_grid_attach(GTK_GRID(gtk3_grid_), gtk3_label_local_, 0, 0, 1, 1);
+        gtk_grid_attach(GTK_GRID(gtk3_grid_), gtk3_drawing_area_local_, 0, 1, 1, 1);
+        // gtk_grid_attach(GTK_GRID(gtk3_grid_), gtk3_label_remote_, 1, 0, 1, 1);
+        gtk_grid_attach(GTK_GRID(gtk3_grid_), gtk3_drawing_area_remote_, 1, 1, 1, 1);
+
+        gtk_container_add(GTK_CONTAINER(gtk3_window_), gtk3_grid_);
+
+        gtk_window_set_title (GTK_WINDOW (gtk3_window_), "PeerVideoClient: WebRTC Video Sample");
+        gtk_window_set_default_size (GTK_WINDOW (gtk3_window_), 1280, 480);
+        gtk_widget_show_all (gtk3_window_);
+    }
+
 };
 
 int main(int argc, char* argv[]) {
@@ -602,18 +677,14 @@ int main(int argc, char* argv[]) {
 
     // client->query_peer_type();
     try {
-        int count = 0;
-        auto b = std::chrono::high_resolution_clock::now();
-        while(client->is_connected()) {
-        // for (int i = 0; i < 10; i++) {
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            if (client->getType() == PeerClient::PeerType::Caller) {
-                logger->info("Caller main thread is doing nothing.");
-                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-            } else {
-                logger->info("Callee main thread is doing nothing.");
-                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-            }
+        if (client->is_connected()) {
+            GtkApplication *app;
+            int status;
+
+            app = gtk_application_new ("org.gtk.example", G_APPLICATION_FLAGS_NONE);
+            g_signal_connect (app, "activate", G_CALLBACK (PeerVideoClient::gtk3_window_activate_callback), &client);
+            status = g_application_run (G_APPLICATION (app), argc, argv);
+            g_object_unref (app);
         }
     } catch (std::exception &e) {
         logger->error("Terminated by Interrupt: {} ", e.what());

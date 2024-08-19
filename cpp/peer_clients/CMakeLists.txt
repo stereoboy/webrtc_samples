@@ -57,6 +57,14 @@ find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBPULSE REQUIRED libpulse)
 pkg_search_module(GLIB REQUIRED glib-2.0)
 pkg_search_module(GIO REQUIRED gio-2.0)
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+pkg_check_modules(GMODULE REQUIRED gmodule-2.0)
+pkg_check_modules(GTHREAD REQUIRED gthread-2.0)
+message(STATUS "GLIB_LIBRARIES: ${GLIB_LIBRARIES}")
+message(STATUS "GIO_LIBRARIES: ${GIO_LIBRARIES}")
+message(STATUS "GTK3_LIBRARIES: ${GTK3_LIBRARIES}")
+message(STATUS "GMODULE_LIBRARIES: ${GMODULE_LIBRARIES}")
+message(STATUS "GTHREAD_LIBRARIES: ${GTHREAD_LIBRARIES}")
 
 #include_directories(
 #  ${webrtc_DIR}
@@ -287,6 +295,7 @@ target_include_directories(
     lib/socket.io-client-cpp/lib/asio/asio/include
     ${webrtc_DIR}/third_party/abseil-cpp
     include
+    ${GTK3_INCLUDE_DIRS} # Add the Gtk3 include directory
 )
 
 target_compile_definitions(
@@ -342,6 +351,7 @@ target_link_libraries(
     ${X11_LIBRARIES} # Add the X11 library
     ${GLIB_LIBRARIES}
     ${GIO_LIBRARIES}
+    ${GTK3_LIBRARIES} # Add the Gtk3 library library
     rt
 )
 

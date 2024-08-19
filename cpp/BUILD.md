@@ -139,4 +139,6 @@ cmake  -DUSE_PRECOMPILED_WEBRTC=OFF .. && make -j
   $ pactl get-default-sink
   alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1
   ```
-  *
+### peer_video_client
+* GTK3 for visualization
+  * https://docs.gtk.org/gtk3/getting_started.html
