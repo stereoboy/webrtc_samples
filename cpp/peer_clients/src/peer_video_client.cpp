@@ -1,6 +1,8 @@
 #include <chrono>
 
 #include <csignal>
+#include <cassert>
+
 #include <thread>
 
 #include <sio_client.h>
@@ -9,6 +11,12 @@
 
 #include <api/media_stream_interface.h>
 #include <api/peer_connection_interface.h>
+
+#include "api/video/i420_buffer.h"
+#include "api/video/video_frame_buffer.h"
+#include "api/video/video_rotation.h"
+#include "api/video/video_source_interface.h"
+
 #include <api/audio_codecs/audio_decoder_factory.h>
 #include <api/audio_codecs/audio_encoder_factory.h>
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
@@ -47,7 +55,11 @@
 #include <absl/flags/parse.h>
 #include <absl/flags/usage.h>
 
+#include <cairo.h>
 #include <gtk/gtk.h>
+
+#include <libyuv/convert.h>
+#include <libyuv/convert_from.h>
 
 ABSL_FLAG(std::string, server, "localhost", "The server to connect to.");
 ABSL_FLAG(int,
@@ -118,6 +130,88 @@ class PeerVideoClient : public PeerClient,
                               public webrtc::CreateSessionDescriptionObserver
                             {
 
+    class VideoRenderer : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
+    public:
+        VideoRenderer(const std::string name, PeerVideoClient *peer_client, webrtc::VideoTrackInterface* track_to_render, GtkWidget *&gtk3_drawing_area)
+        :   name_(name),
+            peer_client_(peer_client),
+            rendered_track_(track_to_render),
+            gtk3_drawing_area_(gtk3_drawing_area) {
+            assert(gtk3_drawing_area_);
+            rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+        }
+
+        virtual ~VideoRenderer() {
+
+        }
+
+        //
+        // VideoSinkInterface implementation
+        //
+        void OnFrame(const webrtc::VideoFrame& video_frame) override {
+            // peer_client_->logger_->info("VideoSinkInterface::OnFrame: {} {}x{}", name_, video_frame.width(), video_frame.height());
+
+            // printf("peer_client_=(%p)\n", peer_client_);
+            // printf("peer_client_->gtk3_drawing_area_local_=(%p)\n", peer_client_->gtk3_drawing_area_local_);
+            // printf("peer_client_->gtk3_drawing_area_remote_=(%p)\n", peer_client_->gtk3_drawing_area_remote_);
+
+            // gdk_threads_enter();
+
+            rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
+                video_frame.video_frame_buffer()->ToI420());
+            if (video_frame.rotation() != webrtc::kVideoRotation_0) {
+                buffer = webrtc::I420Buffer::Rotate(*buffer, video_frame.rotation());
+            }
+            SetSize(buffer->width(), buffer->height());
+
+            // TODO(bugs.webrtc.org/6857): This conversion is correct for little-endian
+            // only. Cairo ARGB32 treats pixels as 32-bit values in *native* byte order,
+            // with B in the least significant byte of the 32-bit value. Which on
+            // little-endian means that memory layout is BGRA, with the B byte stored at
+            // lowest address. Libyuv's ARGB format (surprisingly?) uses the same
+            // little-endian format, with B in the first byte in memory, regardless of
+            // native endianness.
+            libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(), buffer->DataU(),
+                                buffer->StrideU(), buffer->DataV(), buffer->StrideV(),
+                                image_.get(), width_ * 4, buffer->width(),
+                                buffer->height());
+
+            // gdk_threads_leave();
+
+            gtk_widget_set_size_request (gtk3_drawing_area_, buffer->width(), buffer->height());
+
+            gtk_widget_queue_draw(gtk3_drawing_area_);
+
+        }
+
+        const uint8_t* image() const { return image_.get(); }
+
+        int width() const { return width_; }
+
+        int height() const { return height_; }
+
+    // protected:
+        void SetSize(int width, int height) {
+            // gdk_threads_enter();
+
+            if (width_ == width && height_ == height) {
+                return;
+            }
+
+            width_ = width;
+            height_ = height;
+            image_.reset(new uint8_t[width * height * 4]);
+            // gdk_threads_leave();
+        }
+        std::string     name_;
+        std::unique_ptr<uint8_t[]> image_;
+        int width_      = 0;
+        int height_     = 0;
+        PeerVideoClient *peer_client_ = nullptr;
+        rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
+        GtkWidget *&gtk3_drawing_area_;
+    };
+
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
 
     std::unique_ptr<rtc::Thread> network_thread_;
@@ -125,6 +219,8 @@ class PeerVideoClient : public PeerClient,
     std::unique_ptr<rtc::Thread> signaling_thread_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
+
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
 
     // std::unique_ptr<rtc::Thread> signaling_thread_;
 
@@ -135,6 +231,30 @@ class PeerVideoClient : public PeerClient,
     GtkWidget           *gtk3_label_remote_ = nullptr;
     GtkWidget           *gtk3_drawing_area_remote_ = nullptr;
 
+    std::unique_ptr<VideoRenderer> local_renderer_;
+    std::unique_ptr<VideoRenderer> remote_renderer_;
+    std::unique_ptr<uint8_t[]> local_buffer_;
+    std::unique_ptr<uint8_t[]> remote_buffer_;
+
+    void StartLocalRenderer(webrtc::VideoTrackInterface* local_video) {
+        logger_->info("StartLocalRenderer()");
+        local_renderer_.reset(new VideoRenderer("Local", this, local_video, gtk3_drawing_area_local_));
+    }
+
+    void StopLocalRenderer() {
+        logger_->info("StopLocalRenderer()");
+        local_renderer_.reset();
+    }
+
+    void StartRemoteRenderer(webrtc::VideoTrackInterface* remote_video) {
+        logger_->info("StartRemoteRenderer()");
+        remote_renderer_.reset(new VideoRenderer("Remote", this, remote_video, gtk3_drawing_area_remote_));
+    }
+
+    void StopRemoteRenderer() {
+        logger_->info("StopRemoteRenderer()");
+        remote_renderer_.reset();
+    }
 
 public:
     PeerVideoClient(): PeerClient("VideoClient") {
@@ -142,6 +262,10 @@ public:
     }
 
     virtual ~PeerVideoClient() {
+
+        StopLocalRenderer();
+        StopRemoteRenderer();
+
         if (peer_connection_) {
             peer_connection_->Close();
             peer_connection_ = nullptr;
@@ -206,6 +330,12 @@ public:
         logger_->info("PeerConnectionInterface::OnAddTrack: {}", receiver->id());
         // TODO
         // Start to render Remote Video Track, if stream is video
+        ;
+        auto* track = reinterpret_cast<webrtc::MediaStreamTrackInterface*>(receiver->track().release());
+        if (track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind) {
+            auto* video_track = static_cast<webrtc::VideoTrackInterface*>(track);
+            StartRemoteRenderer(video_track);
+        }
     }
 
     void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {
@@ -530,8 +660,10 @@ public:
             logger_->error("Failed to create VideoTrackSource ");
             return false;
         }
-        rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(peer_connection_factory_->CreateVideoTrack(video_device, "video_label"));
-        auto result_or_error = peer_connection_->AddTrack(video_track, {"stream_id"});
+        video_track_ = peer_connection_factory_->CreateVideoTrack(video_device, "video_label");
+        // video_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+        StartLocalRenderer(video_track_.get());
+        auto result_or_error = peer_connection_->AddTrack(video_track_, {"stream_id"});
         if (!result_or_error.ok()) {
             logger_->error("Failed to add video track to PeerConnection: {}", result_or_error.error().message());
         }
@@ -588,33 +720,92 @@ public:
         return true;
     }
 
-    static gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data) {
-        return static_cast<PeerVideoClient *>(data)->draw_callback_handler(widget, cr);
+    static gboolean draw_local_callback (GtkWidget *widget, cairo_t *cr, gpointer data) {
+        return static_cast<PeerVideoClient *>(data)->draw_local_callback_handler(widget, cr);
     }
 
-    gboolean draw_callback_handler (GtkWidget *widget, cairo_t *cr) {
+    gboolean draw_local_callback_handler (GtkWidget *widget, cairo_t *cr) {
         guint width, height;
-        GdkRGBA color;
         GtkStyleContext *context;
 
         context = gtk_widget_get_style_context (widget);
 
-        width = gtk_widget_get_allocated_width (widget);
-        height = gtk_widget_get_allocated_height (widget);
+        if (local_renderer_) {
+            width = local_renderer_->width();
+            height = local_renderer_->height();
 
-        gtk_render_background (context, cr, 0, 0, width, height);
+            // logger_->info("draw_local_callback_handler: {}x{}", width, height);
 
-        cairo_arc (cr,
-                    width / 2.0, height / 2.0,
-                    MIN (width, height) / 2.0,
-                    0, 2 * G_PI);
+            cairo_format_t format = CAIRO_FORMAT_ARGB32;
+            cairo_surface_t* surface = cairo_image_surface_create_for_data(
+                (unsigned char *)local_renderer_->image(), format, width, height,
+                cairo_format_stride_for_width(format, width));
+            cairo_set_source_surface(cr, surface, 0, 0);
+            cairo_rectangle(cr, 0, 0, width, height);
 
-        gtk_style_context_get_color (context,
-                                    gtk_style_context_get_state (context),
-                                    &color);
-        gdk_cairo_set_source_rgba (cr, &color);
+            cairo_fill (cr);
+
+            cairo_surface_destroy(surface);
+        }
+
+        cairo_rectangle (cr, 0, 0, 200, 30);
+
+        cairo_set_source_rgb (cr, 0, 0, 0);
 
         cairo_fill (cr);
+
+        cairo_select_font_face (cr, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size (cr, 10);
+        cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
+        cairo_move_to (cr, 10, 20);
+
+        char text[256];
+        snprintf(text, sizeof(text), "Local Video: %dx%d", width, height);
+        cairo_show_text (cr, text);
+
+        return FALSE;
+    }
+
+    static gboolean draw_remote_callback (GtkWidget *widget, cairo_t *cr, gpointer data) {
+        return static_cast<PeerVideoClient *>(data)->draw_remote_callback_handler(widget, cr);
+    }
+
+    gboolean draw_remote_callback_handler (GtkWidget *widget, cairo_t *cr) {
+        guint width, height;
+        GtkStyleContext *context;
+
+        context = gtk_widget_get_style_context (widget);
+
+        if (remote_renderer_) {
+            width = remote_renderer_->width();
+            height = remote_renderer_->height();
+
+            cairo_format_t format = CAIRO_FORMAT_ARGB32;
+            cairo_surface_t* surface = cairo_image_surface_create_for_data(
+                (unsigned char *)remote_renderer_->image(), format, width, height,
+                cairo_format_stride_for_width(format, width));
+            cairo_set_source_surface(cr, surface, 0, 0);
+            cairo_rectangle(cr, 0, 0, width, height);
+
+            cairo_fill (cr);
+
+            cairo_surface_destroy(surface);
+        }
+
+        cairo_rectangle (cr, 0, 0, 200, 30);
+
+        cairo_set_source_rgb (cr, 0, 0, 0);
+
+        cairo_fill (cr);
+
+        cairo_select_font_face (cr, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size (cr, 10);
+        cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
+        cairo_move_to (cr, 10, 20);
+
+        char text[256];
+        snprintf(text, sizeof(text), "Remote Video: %dx%d", width, height);
+        cairo_show_text (cr, text);
 
         return FALSE;
     }
@@ -629,12 +820,12 @@ public:
 
         gtk3_label_local_ = gtk_label_new("local video");
         gtk3_drawing_area_local_ = gtk_drawing_area_new ();
-        gtk_widget_set_size_request (gtk3_drawing_area_local_, 640, 480);
-        g_signal_connect (G_OBJECT (gtk3_drawing_area_local_), "draw", G_CALLBACK (draw_callback), this);
+        // gtk_widget_set_size_request (gtk3_drawing_area_local_, 640, 480);
+        g_signal_connect (G_OBJECT (gtk3_drawing_area_local_), "draw", G_CALLBACK (draw_local_callback), this);
         gtk3_label_remote_ = gtk_label_new("remote video");
         gtk3_drawing_area_remote_ = gtk_drawing_area_new ();
         gtk_widget_set_size_request (gtk3_drawing_area_remote_, 640, 480);
-        g_signal_connect (G_OBJECT (gtk3_drawing_area_remote_), "draw", G_CALLBACK (draw_callback), this);
+        g_signal_connect (G_OBJECT (gtk3_drawing_area_remote_), "draw", G_CALLBACK (draw_remote_callback), this);
         gtk3_grid_ = gtk_grid_new();
 
         gtk_grid_set_row_spacing(GTK_GRID(gtk3_grid_), 2);
@@ -682,7 +873,7 @@ int main(int argc, char* argv[]) {
             int status;
 
             app = gtk_application_new ("org.gtk.example", G_APPLICATION_FLAGS_NONE);
-            g_signal_connect (app, "activate", G_CALLBACK (PeerVideoClient::gtk3_window_activate_callback), &client);
+            g_signal_connect (app, "activate", G_CALLBACK (PeerVideoClient::gtk3_window_activate_callback), client.get());
             status = g_application_run (G_APPLICATION (app), argc, argv);
             g_object_unref (app);
         }

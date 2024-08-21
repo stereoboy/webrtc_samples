@@ -349,6 +349,7 @@ target_link_libraries(
     sioclient
     spdlog::spdlog
     ${X11_LIBRARIES} # Add the X11 library
+    yuv # Add the libyuv library
     ${GLIB_LIBRARIES}
     ${GIO_LIBRARIES}
     ${GTK3_LIBRARIES} # Add the Gtk3 library library

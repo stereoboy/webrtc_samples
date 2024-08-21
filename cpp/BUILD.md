@@ -142,3 +142,10 @@ cmake  -DUSE_PRECOMPILED_WEBRTC=OFF .. && make -j
 ### peer_video_client
 * GTK3 for visualization
   * https://docs.gtk.org/gtk3/getting_started.html
+```
+sudo apt-get install libgtk-3-dev
+```
+* `libyuv`
+```
+sudo apt-get install libyuv-dev libyuv0
+```
