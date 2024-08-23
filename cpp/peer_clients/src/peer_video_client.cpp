@@ -300,32 +300,6 @@ public:
         logger_->info("PeerVideoClient deleted");
     }
 
-    rtc::scoped_refptr<CapturerTrackSource> CreateCapturerTrackSource() {
-        const size_t kWidth = 640;
-        const size_t kHeight = 480;
-        const size_t kFps = 30;
-        std::unique_ptr<webrtc::test::VcmCapturer> capturer;
-        std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
-        if (!info) {
-            return nullptr;
-        }
-        int num_devices = info->NumberOfDevices();
-        for (int i = 0; i < num_devices; ++i) {
-            char device_name[256];
-            char unique_name[256];
-            char product_name[256];
-            info->GetDeviceName(i, device_name, sizeof(device_name), unique_name, sizeof(unique_name), product_name, sizeof(product_name));
-            // logger_->info("\t[{}] Device Name: {}, Unique Name: {}, Product Name: {}", i, device_name, unique_name, product_name);
-            logger_->info("Try to create VideoTrackSource from Device[{}]({}, {})", i, device_name, unique_name, product_name);
-
-            capturer = absl::WrapUnique(webrtc::test::VcmCapturer::Create(kWidth, kHeight, kFps, i));
-            if (capturer) {
-                return rtc::make_ref_counted<CapturerTrackSource>(std::move(capturer));
-            }
-        }
-        return nullptr;
-    }
-
     //
     // PeerConnectionObserver implementation.
     //
@@ -791,6 +765,8 @@ public:
             width = remote_renderer_->width();
             height = remote_renderer_->height();
 
+            // logger_->info("draw_remote_callback_handler: {}x{}", width, height);
+
             cairo_format_t format = CAIRO_FORMAT_ARGB32;
             cairo_surface_t* surface = cairo_image_surface_create_for_data(
                 (unsigned char *)remote_renderer_->image(), format, width, height,
@@ -835,7 +811,7 @@ public:
         g_signal_connect (G_OBJECT (gtk3_drawing_area_local_), "draw", G_CALLBACK (draw_local_callback), this);
         gtk3_label_remote_ = gtk_label_new("remote video");
         gtk3_drawing_area_remote_ = gtk_drawing_area_new ();
-        gtk_widget_set_size_request (gtk3_drawing_area_remote_, 640, 480);
+        // gtk_widget_set_size_request (gtk3_drawing_area_remote_, 640, 480);
         g_signal_connect (G_OBJECT (gtk3_drawing_area_remote_), "draw", G_CALLBACK (draw_remote_callback), this);
         gtk3_grid_ = gtk_grid_new();
 
@@ -883,9 +859,9 @@ int main(int argc, char* argv[]) {
             GtkApplication *app;
             int status;
 
-            app = gtk_application_new ("org.gtk.example", G_APPLICATION_FLAGS_NONE);
+            app = gtk_application_new ("com.stereoboy.webrtc.example", G_APPLICATION_FLAGS_NONE);
             g_signal_connect (app, "activate", G_CALLBACK (PeerVideoClient::gtk3_window_activate_callback), client.get());
-            status = g_application_run (G_APPLICATION (app), argc, argv);
+            status = g_application_run (G_APPLICATION (app), 0, nullptr);
             g_object_unref (app);
         }
     } catch (std::exception &e) {
