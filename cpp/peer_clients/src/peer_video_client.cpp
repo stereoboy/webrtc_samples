@@ -68,6 +68,12 @@ ABSL_FLAG(int,
           "The port on which the server is listening.");
 
 
+#define TARGET_VIDEO_WIDTH      1920.0
+#define TARGET_VIDEO_HEIGHT     1080.0
+
+#define VIS_VIDEO_HEIGHT        480.0
+#define VIS_VIDEO_WIDTH         (TARGET_VIDEO_WIDTH/TARGET_VIDEO_HEIGHT)*VIS_VIDEO_HEIGHT
+
 class DummySetSessionDescriptionObserver
     : public webrtc::SetSessionDescriptionObserver {
 public:
@@ -90,8 +96,8 @@ public:
     static rtc::scoped_refptr<CapturerTrackSource> Create() {
         auto logger = spdlog::stdout_color_mt("CapturerTrackSource");
 
-        const size_t kWidth = 1920;
-        const size_t kHeight = 1080;
+        const size_t kWidth = TARGET_VIDEO_WIDTH;
+        const size_t kHeight = TARGET_VIDEO_HEIGHT;
         const size_t kFps = 30;
         std::unique_ptr<webrtc::test::VcmCapturer> capturer;
         std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
@@ -185,7 +191,7 @@ class PeerVideoClient : public PeerClient,
             // gdk_threads_leave();
 
             if (gtk3_drawing_area_) {
-                gtk_widget_set_size_request (gtk3_drawing_area_, buffer->width(), buffer->height());
+                // gtk_widget_set_size_request (gtk3_drawing_area_, buffer->width(), buffer->height());
                 gtk_widget_queue_draw(gtk3_drawing_area_);
             }
 
@@ -707,10 +713,8 @@ public:
     }
 
     gboolean draw_local_callback_handler (GtkWidget *widget, cairo_t *cr) {
-        guint width, height;
-        GtkStyleContext *context;
-
-        context = gtk_widget_get_style_context (widget);
+        guint width = 0, height = 0;
+        cairo_matrix_t matrix;
 
         if (local_renderer_) {
 
@@ -718,18 +722,28 @@ public:
             width = local_renderer_->width();
             height = local_renderer_->height();
 
+            if (width == 0 || height == 0) {
+                return FALSE;
+            }
             // logger_->info("draw_local_callback_handler: {}x{}", width, height);
-
+            cairo_get_matrix (cr, &matrix);
             cairo_format_t format = CAIRO_FORMAT_ARGB32;
             cairo_surface_t* surface = cairo_image_surface_create_for_data(
                 (unsigned char *)local_renderer_->image(), format, width, height,
                 cairo_format_stride_for_width(format, width));
-            cairo_set_source_surface(cr, surface, 0, 0);
-            cairo_rectangle(cr, 0, 0, width, height);
 
-            cairo_fill (cr);
+            float ratio_x = static_cast<float>(VIS_VIDEO_WIDTH) / TARGET_VIDEO_WIDTH;
+            float ratio_y = static_cast<float>(VIS_VIDEO_HEIGHT) / TARGET_VIDEO_HEIGHT;
+            cairo_scale(cr, ratio_x, ratio_y);
+
+            cairo_set_source_surface(cr, surface, 0, 0);
+            // cairo_rectangle(cr, 0, 0, width, height);
+            // cairo_fill(cr);
+            cairo_paint(cr);
 
             cairo_surface_destroy(surface);
+
+            cairo_set_matrix(cr, &matrix);
         }
 
         cairo_rectangle (cr, 0, 0, 200, 30);
@@ -755,28 +769,36 @@ public:
     }
 
     gboolean draw_remote_callback_handler (GtkWidget *widget, cairo_t *cr) {
-        guint width, height;
-        GtkStyleContext *context;
-
-        context = gtk_widget_get_style_context (widget);
+        guint width = 0, height = 0;
+        cairo_matrix_t matrix;
 
         if (remote_renderer_) {
             std::unique_lock<std::mutex> lock(remote_renderer_->mutex_);
             width = remote_renderer_->width();
             height = remote_renderer_->height();
 
+            if (width == 0 || height == 0) {
+                return FALSE;
+            }
             // logger_->info("draw_remote_callback_handler: {}x{}", width, height);
-
+            cairo_get_matrix (cr, &matrix);
             cairo_format_t format = CAIRO_FORMAT_ARGB32;
             cairo_surface_t* surface = cairo_image_surface_create_for_data(
                 (unsigned char *)remote_renderer_->image(), format, width, height,
                 cairo_format_stride_for_width(format, width));
-            cairo_set_source_surface(cr, surface, 0, 0);
-            cairo_rectangle(cr, 0, 0, width, height);
 
-            cairo_fill (cr);
+            float ratio_x = static_cast<float>(VIS_VIDEO_WIDTH) / TARGET_VIDEO_WIDTH;
+            float ratio_y = static_cast<float>(VIS_VIDEO_HEIGHT) / TARGET_VIDEO_HEIGHT;
+            cairo_scale(cr, ratio_x, ratio_y);
+
+            cairo_set_source_surface(cr, surface, 0, 0);
+            // cairo_rectangle(cr, 0, 0, width, height);
+            // cairo_fill(cr);
+            cairo_paint(cr);
 
             cairo_surface_destroy(surface);
+
+            cairo_set_matrix(cr, &matrix);
         }
 
         cairo_rectangle (cr, 0, 0, 200, 30);
@@ -807,11 +829,11 @@ public:
 
         gtk3_label_local_ = gtk_label_new("local video");
         gtk3_drawing_area_local_ = gtk_drawing_area_new ();
-        // gtk_widget_set_size_request (gtk3_drawing_area_local_, 640, 480);
+        gtk_widget_set_size_request (gtk3_drawing_area_local_, VIS_VIDEO_WIDTH, VIS_VIDEO_HEIGHT);
         g_signal_connect (G_OBJECT (gtk3_drawing_area_local_), "draw", G_CALLBACK (draw_local_callback), this);
         gtk3_label_remote_ = gtk_label_new("remote video");
         gtk3_drawing_area_remote_ = gtk_drawing_area_new ();
-        // gtk_widget_set_size_request (gtk3_drawing_area_remote_, 640, 480);
+        gtk_widget_set_size_request (gtk3_drawing_area_remote_, VIS_VIDEO_WIDTH, VIS_VIDEO_HEIGHT);
         g_signal_connect (G_OBJECT (gtk3_drawing_area_remote_), "draw", G_CALLBACK (draw_remote_callback), this);
         gtk3_grid_ = gtk_grid_new();
 
@@ -826,7 +848,7 @@ public:
         gtk_container_add(GTK_CONTAINER(gtk3_window_), gtk3_grid_);
 
         gtk_window_set_title (GTK_WINDOW (gtk3_window_), "PeerVideoClient: WebRTC Video Sample");
-        gtk_window_set_default_size (GTK_WINDOW (gtk3_window_), 1280, 480);
+        gtk_window_set_default_size (GTK_WINDOW (gtk3_window_), 2*VIS_VIDEO_WIDTH, VIS_VIDEO_HEIGHT);
         gtk_widget_show_all (gtk3_window_);
     }
 
