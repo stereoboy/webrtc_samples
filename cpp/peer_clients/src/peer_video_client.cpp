@@ -145,6 +145,7 @@ class PeerVideoClient : public PeerClient,
             gtk3_drawing_area_(gtk3_drawing_area) {
             assert(gtk3_drawing_area_);
             rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+            start_time_ = std::chrono::high_resolution_clock::now();
         }
 
         virtual ~VideoRenderer() {
@@ -188,6 +189,16 @@ class PeerVideoClient : public PeerClient,
 
             }
 
+            count_++;
+            auto end_time = std::chrono::high_resolution_clock::now();
+            double elapsed = std::chrono::duration<double, std::milli>(end_time - start_time_).count();
+            if (elapsed > 10000) {
+                const float hz = count_*1000/elapsed;
+                peer_client_->logger_->info("VideoSinkInterface::OnFrame: {} {}fps", name_, hz);
+                start_time_ = end_time;
+                count_ = 0;
+            }
+
             // gdk_threads_leave();
 
             if (gtk3_drawing_area_) {
@@ -224,6 +235,9 @@ class PeerVideoClient : public PeerClient,
         GtkWidget                   *&gtk3_drawing_area_;
         std::mutex                  mutex_;
         rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
+
+        std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+        int count_ = 0;
     };
 
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
