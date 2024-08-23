@@ -90,8 +90,8 @@ public:
     static rtc::scoped_refptr<CapturerTrackSource> Create() {
         auto logger = spdlog::stdout_color_mt("CapturerTrackSource");
 
-        const size_t kWidth = 640;
-        const size_t kHeight = 480;
+        const size_t kWidth = 1920;
+        const size_t kHeight = 1080;
         const size_t kFps = 30;
         std::unique_ptr<webrtc::test::VcmCapturer> capturer;
         std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
@@ -162,25 +162,32 @@ class PeerVideoClient : public PeerClient,
             if (video_frame.rotation() != webrtc::kVideoRotation_0) {
                 buffer = webrtc::I420Buffer::Rotate(*buffer, video_frame.rotation());
             }
-            SetSize(buffer->width(), buffer->height());
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
 
-            // TODO(bugs.webrtc.org/6857): This conversion is correct for little-endian
-            // only. Cairo ARGB32 treats pixels as 32-bit values in *native* byte order,
-            // with B in the least significant byte of the 32-bit value. Which on
-            // little-endian means that memory layout is BGRA, with the B byte stored at
-            // lowest address. Libyuv's ARGB format (surprisingly?) uses the same
-            // little-endian format, with B in the first byte in memory, regardless of
-            // native endianness.
-            libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(), buffer->DataU(),
-                                buffer->StrideU(), buffer->DataV(), buffer->StrideV(),
-                                image_.get(), width_ * 4, buffer->width(),
-                                buffer->height());
+
+                SetSize(buffer->width(), buffer->height());
+
+                // TODO(bugs.webrtc.org/6857): This conversion is correct for little-endian
+                // only. Cairo ARGB32 treats pixels as 32-bit values in *native* byte order,
+                // with B in the least significant byte of the 32-bit value. Which on
+                // little-endian means that memory layout is BGRA, with the B byte stored at
+                // lowest address. Libyuv's ARGB format (surprisingly?) uses the same
+                // little-endian format, with B in the first byte in memory, regardless of
+                // native endianness.
+                libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(), buffer->DataU(),
+                                    buffer->StrideU(), buffer->DataV(), buffer->StrideV(),
+                                    image_.get(), width_ * 4, buffer->width(),
+                                    buffer->height());
+
+            }
 
             // gdk_threads_leave();
 
-            gtk_widget_set_size_request (gtk3_drawing_area_, buffer->width(), buffer->height());
-
-            gtk_widget_queue_draw(gtk3_drawing_area_);
+            if (gtk3_drawing_area_) {
+                gtk_widget_set_size_request (gtk3_drawing_area_, buffer->width(), buffer->height());
+                gtk_widget_queue_draw(gtk3_drawing_area_);
+            }
 
         }
 
@@ -203,13 +210,14 @@ class PeerVideoClient : public PeerClient,
             image_.reset(new uint8_t[width * height * 4]);
             // gdk_threads_leave();
         }
-        std::string     name_;
-        std::unique_ptr<uint8_t[]> image_;
         int width_      = 0;
         int height_     = 0;
-        PeerVideoClient *peer_client_ = nullptr;
+        std::string                 name_;
+        std::unique_ptr<uint8_t[]>  image_;
+        PeerVideoClient             *peer_client_ = nullptr;
+        GtkWidget                   *&gtk3_drawing_area_;
+        std::mutex                  mutex_;
         rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
-        GtkWidget *&gtk3_drawing_area_;
     };
 
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
@@ -731,6 +739,8 @@ public:
         context = gtk_widget_get_style_context (widget);
 
         if (local_renderer_) {
+
+            std::unique_lock<std::mutex> lock(local_renderer_->mutex_);
             width = local_renderer_->width();
             height = local_renderer_->height();
 
@@ -777,6 +787,7 @@ public:
         context = gtk_widget_get_style_context (widget);
 
         if (remote_renderer_) {
+            std::unique_lock<std::mutex> lock(remote_renderer_->mutex_);
             width = remote_renderer_->width();
             height = remote_renderer_->height();
 
