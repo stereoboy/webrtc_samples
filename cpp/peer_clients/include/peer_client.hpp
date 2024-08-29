@@ -1,6 +1,7 @@
 #ifndef __PEER_CLIENT_HPP__
 #define __PEER_CLIENT_HPP__
 
+#include <atomic>
 #include <mutex>
 #include <condition_variable>
 
@@ -82,7 +83,7 @@ public:
 
     virtual void on_fail() {
         std::unique_lock<std::mutex> lock(msg_mutex_);
-        logger_->error("Connection failed: {}");
+        logger_->error("Connection failed.");
         msg_cond_.notify_all();
     }
 
