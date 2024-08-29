@@ -36,6 +36,7 @@ cd webrtc-checkout
 fetch --nohooks webrtc    // about 10 minutes
 gclient sync              // about 5 minutes
 ```
+* Size: About 30G
 * checkout the milestone `119`
   ```
   cd src
@@ -107,6 +108,9 @@ cmake  -DUSE_PRECOMPILED_WEBRTC=OFF .. && make -j
 * Archlinux's Pulseaudio Wiki
   * https://wiki.archlinux.org/title/PulseAudio
 
+```
+sudo apt-get install libpulse-dev
+```
 * `libpulse`
   ```
   pa_context_get_sink_info_list
