@@ -8,7 +8,24 @@ set(CMAKE_CXX_COMPILER clang++-18) # Set C++ compiler to "clang++"
 
 set(llvm_BUILD_DIR ${CMAKE_SOURCE_DIR}/../llvm-project/build)
 set(webrtc_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src)
-set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Release)
+
+string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+message(STATUS "BUILD_TYPE=<${BUILD_TYPE}>")
+if(BUILD_TYPE STREQUAL "DEBUG")
+    message(STATUS "Debug build")
+    set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Default)
+elseif(BUILD_TYPE STREQUAL "RELEASE")
+    message(STATUS "Release build")
+    set(webrtc_BUILD_DIR ${CMAKE_SOURCE_DIR}/../webrtc-checkout/src/out/Release)
+elseif(BUILD_TYPE STREQUAL "RELWITHDEBINFO")
+    message(STATUS "RelWithDebInfo build")
+    # Add specific settings for RelWithDebInfo build here
+elseif(BUILD_TYPE STREQUAL "MINSIZEREL")
+    message(STATUS "MinSizeRel build")
+    # Add specific settings for MinSizeRel build here
+else()
+    message(WARNING "Unknown build type: ${CMAKE_BUILD_TYPE}")
+endif()
 
 include_directories(
     ${llvm_BUILD_DIR}/include/c++/v1
@@ -72,6 +89,8 @@ message(STATUS "GTHREAD_LIBRARIES: ${GTHREAD_LIBRARIES}")
 #  # ${webrtc_DIR}/buildtools/third_party/libc++
 #  # ${webrtc_DIR}/third_party/libyuv/include
 #)
+
+message(STATUS "USE_PRECOMPILED_WEBRTC=<${USE_PRECOMPILED_WEBRTC}>")
 if (USE_PRECOMPILED_WEBRTC)
   include_directories(
     ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
