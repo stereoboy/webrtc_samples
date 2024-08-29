@@ -143,7 +143,7 @@ class PeerVideoClient : public PeerClient,
             peer_client_(peer_client),
             rendered_track_(track_to_render),
             gtk3_drawing_area_(gtk3_drawing_area) {
-            assert(gtk3_drawing_area_);
+            // assert(gtk3_drawing_area_);
             rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
             start_time_ = std::chrono::high_resolution_clock::now();
         }
@@ -201,11 +201,29 @@ class PeerVideoClient : public PeerClient,
 
             // gdk_threads_leave();
 
+            // std::ostringstream oss;
+            // oss << std::this_thread::get_id() << std::endl;
+            // printf("%s() - %s\n", __FUNCTION__, oss.str().c_str());
+
+            g_idle_add(draw_callback, this);
+        }
+
+        static gboolean draw_callback (gpointer data) {
+            return static_cast<VideoRenderer *>(data)->draw_callback_handler();
+        }
+
+        gboolean draw_callback_handler (void) {
+            // gdk_threads_enter();
             if (gtk3_drawing_area_) {
+                // std::ostringstream oss;
+                // oss << std::this_thread::get_id() << std::endl;
+                // printf("%s() %s - %s\n", __FUNCTION__, name_.c_str(), oss.str().c_str());
+
                 // gtk_widget_set_size_request (gtk3_drawing_area_, buffer->width(), buffer->height());
                 gtk_widget_queue_draw(gtk3_drawing_area_);
             }
-
+            // gdk_threads_leave();
+            return false;
         }
 
         const uint8_t* image() const { return image_.get(); }
@@ -727,8 +745,14 @@ public:
     }
 
     gboolean draw_local_callback_handler (GtkWidget *widget, cairo_t *cr) {
+        // gdk_threads_enter();
+
         guint width = 0, height = 0;
         cairo_matrix_t matrix;
+
+        // std::ostringstream oss;
+        // oss << std::this_thread::get_id() << std::endl;
+        // printf("%s() - %s\n", __FUNCTION__, oss.str().c_str());
 
         if (local_renderer_) {
 
@@ -775,6 +799,7 @@ public:
         snprintf(text, sizeof(text), "Local Video: %dx%d", width, height);
         cairo_show_text (cr, text);
 
+        // gdk_threads_leave();
         return FALSE;
     }
 
@@ -783,6 +808,8 @@ public:
     }
 
     gboolean draw_remote_callback_handler (GtkWidget *widget, cairo_t *cr) {
+        // gdk_threads_enter();
+
         guint width = 0, height = 0;
         cairo_matrix_t matrix;
 
@@ -830,6 +857,7 @@ public:
         snprintf(text, sizeof(text), "Remote Video: %dx%d", width, height);
         cairo_show_text (cr, text);
 
+        // gdk_threads_leave();
         return FALSE;
     }
 
