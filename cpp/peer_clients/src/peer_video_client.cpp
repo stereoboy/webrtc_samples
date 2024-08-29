@@ -279,8 +279,6 @@ class PeerVideoClient : public PeerClient,
 
     std::unique_ptr<VideoRenderer> local_renderer_;
     std::unique_ptr<VideoRenderer> remote_renderer_;
-    std::unique_ptr<uint8_t[]>      local_draw_buffer_;
-    std::unique_ptr<uint8_t[]>      remote_draw_buffer_;
 
     std::unique_ptr<uint8_t[]> local_buffer_;
     std::unique_ptr<uint8_t[]> remote_buffer_;
@@ -293,7 +291,6 @@ class PeerVideoClient : public PeerClient,
     void StopLocalRenderer() {
         logger_->info("StopLocalRenderer()");
         local_renderer_.reset();
-        local_draw_buffer_.reset();
     }
 
     void StartRemoteRenderer(webrtc::VideoTrackInterface* remote_video) {
@@ -304,7 +301,6 @@ class PeerVideoClient : public PeerClient,
     void StopRemoteRenderer() {
         logger_->info("StopRemoteRenderer()");
         remote_renderer_.reset();
-        remote_draw_buffer_.reset();
     }
 
 public:
@@ -769,14 +765,11 @@ public:
                 return FALSE;
             }
 
-            local_draw_buffer_.reset(new uint8_t[width * height * 4]);
-            std::memcpy(local_draw_buffer_.get(), local_renderer_->image(), width * height * 4);
-
             // logger_->info("draw_local_callback_handler: {}x{}", width, height);
             cairo_get_matrix (cr, &matrix);
             cairo_format_t format = CAIRO_FORMAT_ARGB32;
             cairo_surface_t* surface = cairo_image_surface_create_for_data(
-                (unsigned char *)local_draw_buffer_.get(), format, width, height,
+                (unsigned char *)local_renderer_->image(), format, width, height,
                 cairo_format_stride_for_width(format, width));
 
             float ratio_x = static_cast<float>(VIS_VIDEO_WIDTH) / TARGET_VIDEO_WIDTH;
@@ -831,14 +824,11 @@ public:
                 return FALSE;
             }
 
-            remote_draw_buffer_.reset(new uint8_t[width * height * 4]);
-            std::memcpy(remote_draw_buffer_.get(), remote_renderer_->image(), width * height * 4);
-
             // logger_->info("draw_remote_callback_handler: {}x{}", width, height);
             cairo_get_matrix (cr, &matrix);
             cairo_format_t format = CAIRO_FORMAT_ARGB32;
             cairo_surface_t* surface = cairo_image_surface_create_for_data(
-                (unsigned char *)remote_draw_buffer_.get(), format, width, height,
+                (unsigned char *)remote_renderer_->image(), format, width, height,
                 cairo_format_stride_for_width(format, width));
 
             float ratio_x = static_cast<float>(VIS_VIDEO_WIDTH) / TARGET_VIDEO_WIDTH;
