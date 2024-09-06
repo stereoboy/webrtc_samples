@@ -43,26 +43,46 @@ gclient sync              // about 5 minutes
   git checkout branch-heads/6045
   gclient sync
   ```
-* Build
+* Build with `use_custom_libcxx=true` (Default, Use in-tree libc++ (buildtools/third_party/libc++ and buildtools/third_party/libc++abi) instead of the system C++ library)
   * Release version
     ```
-    gn gen out/Release --args='is_debug=false'
+    gn gen out/Release_use_custom_libcxx --args='is_debug=false'
     Done. Made 1762 targets from 295 files in 412ms
 
-    ninja -C out/Release                            // about 10 minutes
-    ninja: Entering directory `out/Release'
+    ninja -C out/Release_use_custom_libcxx                            // about 10 minutes
+    ninja: Entering directory `out/Release_use_custom_libcxx'
     [7242/7242] STAMP obj/default.stamp
     ```
     ```
-    ninja -C out/Release webrtc // This is not enough for abseil-cpp
+    ninja -C out/Release_use_custom_libcxx webrtc // This is not enough for abseil-cpp
     ```
   * Debug version
     ```
-    gn gen out/Default
+    gn gen out/Debug_use_custom_libcxx
     Done. Made 1762 targets from 295 files in 419ms
 
-    ninja -C out/Default                            // about 10 minutes
-    ninja: Entering directory `out/Default'
+    ninja -C out/Debug_use_custom_libcxx                            // about 10 minutes
+    ninja: Entering directory `out/Debug_use_custom_libcxx'
+    [7242/7242] STAMP obj/default.stamp
+    ```
+
+* Build with `use_custom_libcxx=false` (Use host default toolchain's libstdc++ on Ubuntu)
+  * Release version
+    ```
+    gn gen out/Release --args='is_debug=false use_custom_libcxx=false'
+    Done. Made 1762 targets from 295 files in 412ms
+
+    ninja -C out/Release webrtc test_video_capturer platform_video_capturer  // about 10 minutes
+    ninja: Entering directory `out/Release'
+    [7242/7242] STAMP obj/default.stamp
+    ```
+  * Debug version
+    ```
+    gn gen out/Debug  --args='use_custom_libcxx=false'
+    Done. Made 1762 targets from 295 files in 419ms
+
+    ninja -C out/Debug  webrtc test_video_capturer platform_video_capturer  // about 10 minutes
+    ninja: Entering directory `out/Debug'
     [7242/7242] STAMP obj/default.stamp
     ```
 
