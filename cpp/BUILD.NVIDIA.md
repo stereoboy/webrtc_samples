@@ -21,6 +21,25 @@
 * Hardware Acceleration in the WebRTC Framework
   * https://docs.nvidia.com/jetson/archives/r36.3/DeveloperGuide/SD/HardwareAccelerationInTheWebrtcFramework.html
   * https://developer.nvidia.com/embedded/jetson-linux-r363
+* "Hello,how can i use libwebrtc 36.3 hardware acceleration"
+  * https://forums.developer.nvidia.com/t/hello-how-can-i-use-libwebrtc-36-3-hardware-acceleration/297562
+
+* Sample Source `webrtc_argus_camera_app` from `Driver Package (BSP) Sources`
+  * https://developer.nvidia.com/downloads/embedded/l4t/r36_release_v3.0/sources/public_sources.tbz2
+
+
+### Download Prebuilt `libwebrtc.a`
+
+* `public_sources.tbz2` from `Driver Package (BSP) Sources`
+  * https://developer.nvidia.com/downloads/embedded/l4t/r36_release_v3.0/sources/public_sources.tbz2
+
+```
+tar xjvf public_sources.tbz2
+cd Linux_for_Tegra/source
+tar xjvf webrtc_argus_camera_app_src.tbz2
+ cp ./Linux_for_Tegra/source/webrtc_argus_camera_app/prebuilts/aarch64/libwebrtc.a <base>/webrtc_samples/cpp/prebuilts/
+cp ./Linux_for_Tegra/source/webrtc_argus_camera_app/3rdparty/webrtc_headers_2023-06-23/src  <base>/webrtc_samples/cpp/prebuilts/webrtc_headers -rf
+```
 
 
 ### clang v17
@@ -81,26 +100,49 @@ gclient sync              // about 5 minutes
     * https://github.com/CoatiSoftware/Sourcetrail/issues/852
   * Release version
     ```
-    gn gen out/Release --args="is_debug=false clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false"
+    gn gen out/Release_use_custom_libcxx --args="is_debug=false clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false"
     Done. Made 1714 targets from 293 files in 951ms
 
-    ninja -C out/Release                            // about 22 minutes
-    ninja: Entering directory `out/Release'
+    ninja -C out/Release_use_custom_libcxx                            // about 22 minutes
+    ninja: Entering directory `out/Release_use_custom_libcxx'
     [7242/7242] STAMP obj/default.stamp
     ```
     ```
-    ninja -C out/Release webrtc // This is not enough for abseil-cpp
+    ninja -C out/Release_use_custom_libcxx webrtc // This is not enough for abseil-cpp
     ```
   * Debug version
     ```
-    gn gen out/Default --args="clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false"
+    gn gen out/Defaug_use_custom_libcxx --args="clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false"
     Done. Made 1714 targets from 293 files in 1005ms
 
-    ninja -C out/Default                            // about 22 minutes
-    ninja: Entering directory `out/Default'
+    ninja -C out/Debug_use_custom_libcxx                            // about 22 minutes
+    ninja: Entering directory `out/Debug_use_custom_libcxx'
     [7242/7242] STAMP obj/default.stamp
     ```
 
+
+* Build with `use_custom_libcxx=false` (Use host default toolchain's libstdc++ on Ubuntu)
+  * Release version
+    ```
+    gn gen out/Release --args="is_debug=false clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false use_custom_libcxx=false"
+    Done. Made 1762 targets from 295 files in 412ms
+
+    ninja -C out/Release webrtc test_video_capturer platform_video_capturer  // about 5 minutes
+    ninja: Entering directory `out/Release'
+    [3343/3343] AR obj/libwebrtc.a
+
+    ```
+  * Debug version
+    ```
+    gn gen out/Debug  --args="clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false use_custom_libcxx=false"
+    Done. Made 1762 targets from 295 files in 419ms
+
+    ninja -C out/Debug  webrtc test_video_capturer platform_video_capturer  // about 5 minutes
+    ninja -C out/Debug  webrtc test_video_capturer platform_video_capturer
+    ninja: Entering directory `out/Debug'
+    [3343/3343] AR obj/libwebrtc.a
+
+    ```
 ### llvm for C++ stdlib
 ```
 sudo apt-get install ninja-build
@@ -141,8 +183,14 @@ tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./precompiled
 | --- | --- | --- |
 | socket.io-client | | latest |
 | spdlog | | v1.9.2|
+| abseil-cpp | | dc37a887fd *|
+[*] from `webrtc-checkout/src/third_party/abseil-cpp ((HEAD detached at 770155421d2))$ git log -1 .`
 
 ### Build
 ```
 cmake -DUSE_PRECOMPILED_WEBRTC=ON .. && make -j
+
+cmake  -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=ON .. && make -j
+
+cmake  -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=OFF .. && make -j
 ```

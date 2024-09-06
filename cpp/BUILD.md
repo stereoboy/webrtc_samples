@@ -119,6 +119,10 @@ ninja -C build cxx cxxabi
 ### Build
 ```
 cmake  -DUSE_PRECOMPILED_WEBRTC=OFF .. && make -j
+
+cmake  -DUSE_PRECOMPILED_WEBRTC=OFF -DUSE_CUSTOM_LIBCXX=ON .. && make -j
+
+cmake  -DUSE_PRECOMPILED_WEBRTC=OFF -DUSE_CUSTOM_LIBCXX=OFF .. && make -j
 ```
 
 ### peer_audio_client
