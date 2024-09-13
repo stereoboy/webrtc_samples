@@ -338,10 +338,11 @@ file(GLOB_RECURSE TEST_OBJS
 
 add_executable(peer_video_client
     src/peer_video_client.cpp
-    # ${webrtc_DIR}/test/vcm_capturer.cc
-    # ${webrtc_DIR}/test/platform_video_capturer.cc
+    ${webrtc_DIR}/test/vcm_capturer.cc
+    ${webrtc_DIR}/test/platform_video_capturer.cc
+    ${webrtc_DIR}/test/test_video_capturer.cc
     ${PRECOMPILED_OBJS}
-    ${TEST_OBJS}
+    # ${TEST_OBJS}
 )
 
 # #linking library directory
@@ -448,10 +449,11 @@ file(GLOB_RECURSE TEST_OBJS
 
 add_executable(peer_combined_client
     src/peer_combined_client.cpp
-    # ${webrtc_DIR}/test/vcm_capturer.cc
-    # ${webrtc_DIR}/test/platform_video_capturer.cc
+    ${webrtc_DIR}/test/vcm_capturer.cc
+    ${webrtc_DIR}/test/platform_video_capturer.cc
+    ${webrtc_DIR}/test/test_video_capturer.cc
     ${PRECOMPILED_OBJS}
-    ${TEST_OBJS}
+    # ${TEST_OBJS}
 )
 
 # #linking library directory
