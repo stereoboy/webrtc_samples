@@ -4,3 +4,6 @@
 [submodule "cpp/peer_clients/lib/spdlog"]
 	path = cpp/peer_clients/lib/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "cpp/peer_clients/lib/abseil-cpp"]
+	path = cpp/peer_clients/lib/abseil-cpp
+	url = git@github.com:abseil/abseil-cpp.git
