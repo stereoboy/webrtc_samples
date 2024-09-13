@@ -139,7 +139,7 @@ if (USE_CUSTOM_LIBCXX)
     set(PRECOMPILED_OBJS
         # ${LIBCPP_OBJS}
         # ${LIBCPPABI_OBJS}
-        ${LIBABSL_OBJS}
+        # ${LIBABSL_OBJS}
     )
 endif()
 
@@ -152,8 +152,10 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 ################################################################################################################
 # WebRTC Sample for DataChannel
 #
-add_executable(peer_datachannel_client src/peer_datachannel_client.cpp ${PRECOMPILED_OBJS})
-# add_executable(peer_datachannel_client src/peer_datachannel_client.cpp)
+add_executable(peer_datachannel_client
+    src/peer_datachannel_client.cpp
+    ${PRECOMPILED_OBJS}
+)
 
 # #linking library directory
 target_link_directories(peer_datachannel_client PUBLIC
@@ -163,8 +165,8 @@ target_include_directories(
     peer_datachannel_client PUBLIC
     lib/socket.io-client-cpp/src
     lib/socket.io-client-cpp/lib/asio/asio/include
-    # lib/abseil-cpp
-    ${webrtc_DIR}/third_party/abseil-cpp
+    lib/abseil-cpp
+    # ${webrtc_DIR}/third_party/abseil-cpp
     include
 )
 
@@ -184,6 +186,8 @@ target_link_libraries(
     peer_datachannel_client PUBLIC
     dl
     webrtc
+    absl::flags_parse
+    absl::flags_usage
     # sioclient_tls
     sioclient
     spdlog::spdlog
@@ -230,12 +234,6 @@ if (USE_CUSTOM_LIBCXX)
         c++
         c++abi
     )
-else()
-    target_link_libraries(
-        peer_datachannel_client PUBLIC
-        absl::flags_parse
-        absl::flags_usage
-    )
 endif()
 
 ################################################################################################################
@@ -254,7 +252,8 @@ target_include_directories(
     peer_audio_client PUBLIC
     lib/socket.io-client-cpp/src
     lib/socket.io-client-cpp/lib/asio/asio/include
-    ${webrtc_DIR}/third_party/abseil-cpp
+    lib/abseil-cpp
+    # ${webrtc_DIR}/third_party/abseil-cpp
     include
 )
 
@@ -274,6 +273,8 @@ target_link_libraries(
     peer_audio_client PUBLIC
     dl
     webrtc
+    absl::flags_parse
+    absl::flags_usage
     # sioclient_tls
     sioclient
     spdlog::spdlog
@@ -322,12 +323,6 @@ if (USE_CUSTOM_LIBCXX)
         c++
         c++abi
     )
-else()
-    target_link_libraries(
-        peer_audio_client PUBLIC
-        absl::flags_parse
-        absl::flags_usage
-    )
 endif()
 
 ################################################################################################################
@@ -357,7 +352,8 @@ target_include_directories(
     peer_video_client PUBLIC
     lib/socket.io-client-cpp/src
     lib/socket.io-client-cpp/lib/asio/asio/include
-    ${webrtc_DIR}/third_party/abseil-cpp
+    lib/abseil-cpp
+    # ${webrtc_DIR}/third_party/abseil-cpp
     include
     ${GTK3_INCLUDE_DIRS} # Add the Gtk3 include directory
 )
@@ -378,6 +374,8 @@ target_link_libraries(
     peer_video_client PUBLIC
     dl
     webrtc
+    absl::flags_parse
+    absl::flags_usage
     # sioclient_tls
     sioclient
     spdlog::spdlog
@@ -435,11 +433,6 @@ else()
         peer_video_client PUBLIC
         -fno-rtti
     )
-    target_link_libraries(
-        peer_video_client PUBLIC
-        absl::flags_parse
-        absl::flags_usage
-    )
 endif()
 
 ################################################################################################################
@@ -469,7 +462,8 @@ target_include_directories(
     peer_combined_client PUBLIC
     lib/socket.io-client-cpp/src
     lib/socket.io-client-cpp/lib/asio/asio/include
-    ${webrtc_DIR}/third_party/abseil-cpp
+    lib/abseil-cpp
+    # ${webrtc_DIR}/third_party/abseil-cpp
     include
 )
 
@@ -490,6 +484,8 @@ target_link_libraries(
     peer_combined_client PUBLIC
     dl
     webrtc
+    absl::flags_parse
+    absl::flags_usage
     # sioclient_tls
     sioclient
     spdlog::spdlog
@@ -543,10 +539,5 @@ else()
     target_compile_options(
         peer_combined_client PUBLIC
         -fno-rtti
-    )
-    target_link_libraries(
-        peer_combined_client PUBLIC
-        absl::flags_parse
-        absl::flags_usage
     )
 endif()

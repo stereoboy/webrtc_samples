@@ -105,19 +105,19 @@ gclient sync              // about 5 minutes
 
     ninja -C out/Release_use_custom_libcxx                            // about 22 minutes
     ninja: Entering directory `out/Release_use_custom_libcxx'
-    [7242/7242] STAMP obj/default.stamp
+    [6750/6750] STAMP obj/default.stamp
     ```
     ```
     ninja -C out/Release_use_custom_libcxx webrtc // This is not enough for abseil-cpp
     ```
   * Debug version
     ```
-    gn gen out/Defaug_use_custom_libcxx --args="clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false"
+    gn gen out/Debug_use_custom_libcxx --args="clang_base_path=\"/lib/llvm-17/\" clang_use_chrome_plugins=false"
     Done. Made 1714 targets from 293 files in 1005ms
 
     ninja -C out/Debug_use_custom_libcxx                            // about 22 minutes
     ninja: Entering directory `out/Debug_use_custom_libcxx'
-    [7242/7242] STAMP obj/default.stamp
+    [6763/6763] STAMP obj/default.stamp
     ```
 
 
@@ -184,7 +184,38 @@ tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./precompiled
 | socket.io-client | | latest |
 | spdlog | | v1.9.2|
 | abseil-cpp | | dc37a887fd *|
-[*] from `webrtc-checkout/src/third_party/abseil-cpp ((HEAD detached at 770155421d2))$ git log -1 .`
+
+#### `abseil-cpp`
+```
+webrtc-checkout/src/third_party/abseil-cpp ((HEAD detached at 770155421d2))$ git log -1 .
+commit ebdeb0dc6980674c597525d712f5826e7e081da0
+Author: Mirko Bonadei <mbonadei@chromium.org>
+Date:   Wed Jun 14 12:03:45 2023 +0000
+
+    Roll abseil_revision 1285ca4b4f..dc37a887fd
+
+    Change Log:
+    https://chromium.googlesource.com/external/github.com/abseil/abseil-cpp/+log/1285ca4b4f..dc37a887fd
+    Full diff:
+    https://chromium.googlesource.com/external/github.com/abseil/abseil-cpp/+/1285ca4b4f..dc37a887fd
+
+    Bug: None
+    Change-Id: I18c63b7afbf721ce9d3e36e5b797786a1d40b84b
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/4613486
+    Reviewed-by: Danil Chapovalov <danilchap@chromium.org>
+    Commit-Queue: Mirko Bonadei <mbonadei@chromium.org>
+    Cr-Commit-Position: refs/heads/main@{#1157458}
+    NOKEYCHECK=True
+    GitOrigin-RevId: 97d7b04952d774f89e9060f57800a207b4f1e30b
+
+```
+
+```
+cd abseil-cpp
+patch -p3 <  ./../../../webrtc-checkout/src/third_party/abseil-cpp/patches/0001-Turn-on-hardened-mode.patch
+patch -p3 <  ./../../../webrtc-checkout/src/third_party/abseil-cpp/patches/0002-delete-unprefixed-annotations.patch
+patch -p3 <  ./../../../webrtc-checkout/src/third_party/abseil-cpp/patches/0003-delete-static-initializer-in-stacktrace.patch
+```
 
 ### Build
 ```
