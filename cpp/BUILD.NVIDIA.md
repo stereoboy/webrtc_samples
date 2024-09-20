@@ -144,6 +144,57 @@ gclient sync              // about 5 minutes
 
     ```
 ### llvm for C++ stdlib
+* get llvm original commit-id from libc++ of webrtc source tree
+  ```
+  webrtc-checkout/src/buildtools/third_party/libc++/trunk ((HEAD detached at 055b2e17a))$ git log -1 .
+  commit 055b2e17ae4f0e2c025ad0c7508b01787df17758 (HEAD)
+  Author: Advenam Tacet <advenam.tacet@trailofbits.com>
+  Date:   Thu May 4 17:43:51 2023 -0700
+
+      [ASan][libcxx] Annotating std::vector with all allocators
+
+      This revision is a part of a series of patches extending
+      AddressSanitizer C++ container overflow detection
+      capabilities by adding annotations, similar to those existing
+      in std::vector, to std::string and std::deque collections.
+      These changes allow ASan to detect cases when the instrumented
+      program accesses memory which is internally allocated by
+      the collection but is still not in-use (accesses before or
+      after the stored elements for std::deque, or between the size and
+      capacity bounds for std::string).
+
+      The motivation for the research and those changes was a bug,
+      found by Trail of Bits, in a real code where an out-of-bounds read
+      could happen as two strings were compared via a std::equals function
+      that took iter1_begin, iter1_end, iter2_begin iterators
+      (with a custom comparison function).
+      When object iter1 was longer than iter2, read out-of-bounds on iter2
+      could happen. Container sanitization would detect it.
+
+      In revision D132522, support for non-aligned memory buffers (sharing
+      first/last granule with other objects) was added, therefore the
+      check for standard allocator is not necessary anymore.
+      This patch removes the check in std::vector annotation member
+      function (__annotate_contiguous_container) to support
+      different allocators.
+
+      Additionally, this revision fixes unpoisoning in std::vector.
+      It guarantees that __alloc_traits::deallocate may access returned memory.
+      Originally suggested in D144155 revision.
+
+      If you have any questions, please email:
+      - advenam.tacet@trailofbits.com
+      - disconnect3d@trailofbits.com
+
+      Reviewed By: #libc, #sanitizers, philnik, vitalybuka, ldionne
+
+      Spies: mikhail.ramalho, manojgupta, ldionne, AntonBikineev, ayzhao, hans, EricWF, philnik, #sanitizers, libcxx-commits
+
+      Differential Revision: https://reviews.llvm.org/D136765
+
+      NOKEYCHECK=True
+      GitOrigin-RevId: c08d4ad25cf3f335e9b2e7b1b149eb1b486868f1
+  ```
 ```
 sudo apt-get install ninja-build
 ```
@@ -154,9 +205,8 @@ sudo apt-get install ninja-build
 ```
 git clone https://github.com/llvm/llvm-project.git    # about 11 minutes
 cd llvm-project
-git checkout af7467ce9f447d6fe977b73db1f03a18d6bbd511 # matching chrome-libcxx-abi
 
-git checkout 3c4b673af05f53e8a4d1a382b5c86367ea512c9e # matching chrome-libcxx
+git checkout c08d4ad25cf3f335e9b2e7b1b149eb1b486868f1 # matching chrome-libcxx
 mkdir build
 ```
 ```
@@ -165,9 +215,9 @@ cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;lib
 -DLIBCXX_ENABLE_VENDOR_AVAILABILITY_ANNOTATIONS=OFF
 ```
 ```
-ninja -C build cxx cxxabi  # about 3 minutes
+llvm-project ((HEAD detached at c08d4ad25cf3))$ ninja -C build cxx cxxabi
 ninja: Entering directory `build'
-[1190/1190] Linking CXX static library lib/libc++.a
+[1086/1086] Linking CXX static library lib/libc++.a
 ```
 
 #### Download NVIDIA Precompiled `libwebrtc.a`
@@ -183,7 +233,7 @@ tar xjvf ./WebRTC_R36.3.0_aarch64.tbz2 -C ./precompiled
 | --- | --- | --- |
 | socket.io-client | | latest |
 | spdlog | | v1.9.2|
-| abseil-cpp | | dc37a887fd *|
+| abseil-cpp | | dc37a887fd * |
 
 #### `abseil-cpp`
 ```
@@ -219,9 +269,6 @@ patch -p3 <  ./../../../webrtc-checkout/src/third_party/abseil-cpp/patches/0003-
 
 ### Build
 ```
-cmake -DUSE_PRECOMPILED_WEBRTC=ON .. && make -j
-
-cmake  -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=ON .. && make -j
-
-cmake  -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=OFF .. && make -j
+mkdir build_precompiled && cd build_precompiled
+cmake -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=ON .. && make -j
 ```

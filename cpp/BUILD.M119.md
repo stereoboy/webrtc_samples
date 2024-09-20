@@ -34,59 +34,89 @@ cd cpp
 mkdir webrtc-checkout
 cd webrtc-checkout
 fetch --nohooks webrtc    // about 10 minutes
-gclient sync              // about 5 minutes
+gclient sync -D           // about 5 minutes
 ```
 * Size: About 30G
 * checkout the milestone `119`
   ```
   cd src
   git checkout branch-heads/6045
-  gclient sync
+  gclient sync -D
   ```
 * Build with `use_custom_libcxx=true` (Default, Use in-tree libc++ (buildtools/third_party/libc++ and buildtools/third_party/libc++abi) instead of the system C++ library)
   * Release version
     ```
-    gn gen out/Release_use_custom_libcxx --args='is_debug=false'
-    Done. Made 1762 targets from 295 files in 412ms
+    src ((HEAD detached at branch-heads/6045))$ gn gen out/Release_use_custom_libcxx --args='is_debug=false'
+    Done. Made 1762 targets from 295 files in 539ms
 
-    ninja -C out/Release_use_custom_libcxx                            // about 10 minutes
+    src ((HEAD detached at branch-heads/6045))$ time ninja -C out/Release_use_custom_libcxx webrtc
     ninja: Entering directory `out/Release_use_custom_libcxx'
-    [7242/7242] STAMP obj/default.stamp
-    ```
-    ```
-    ninja -C out/Release_use_custom_libcxx webrtc // This is not enough for abseil-cpp
+    [3836/3836] AR obj/libwebrtc.a
+
+    real    3m34.578s
+    user    32m39.614s
+    sys     2m10.273s
     ```
   * Debug version
     ```
-    gn gen out/Debug_use_custom_libcxx
-    Done. Made 1762 targets from 295 files in 419ms
+    src ((HEAD detached at branch-heads/6045))$ gn gen out/Debug_use_custom_libcxx
+    Done. Made 1762 targets from 295 files in 431ms
 
-    ninja -C out/Debug_use_custom_libcxx                            // about 10 minutes
+    src ((HEAD detached at branch-heads/6045))$ time ninja -C out/Debug_use_custom_libcxx webrtc
     ninja: Entering directory `out/Debug_use_custom_libcxx'
-    [7242/7242] STAMP obj/default.stamp
+    [3836/3836] AR obj/libwebrtc.a
+
+    real    3m9.703s
+    user    28m49.911s
+    sys     2m17.805s
     ```
 
 * Build with `use_custom_libcxx=false` (Use host default toolchain's libstdc++ on Ubuntu)
   * Release version
     ```
-    gn gen out/Release --args='is_debug=false use_custom_libcxx=false'
-    Done. Made 1762 targets from 295 files in 412ms
+    src ((HEAD detached at branch-heads/6045))$ gn gen out/Release --args='is_debug=false use_custom_libcxx=false'
+    Done. Made 1760 targets from 291 files in 1237ms
 
-    ninja -C out/Release webrtc test_video_capturer platform_video_capturer  // about 10 minutes
+    src ((HEAD detached at branch-heads/6045))$ time ninja -C out/Release webrtc
     ninja: Entering directory `out/Release'
-    [7242/7242] STAMP obj/default.stamp
+    [3768/3768] AR obj/libwebrtc.a
+
+    real    2m40.945s
+    user    27m41.764s
+    sys     1m49.503s
     ```
   * Debug version
     ```
-    gn gen out/Debug  --args='use_custom_libcxx=false'
-    Done. Made 1762 targets from 295 files in 419ms
+    src ((HEAD detached at branch-heads/6045))$ gn gen out/Debug  --args='use_custom_libcxx=false'
+    Done. Made 1760 targets from 291 files in 378ms
 
-    ninja -C out/Debug  webrtc test_video_capturer platform_video_capturer  // about 10 minutes
+    src ((HEAD detached at branch-heads/6045))$ time ninja -C out/Debug webrtc
     ninja: Entering directory `out/Debug'
-    [7242/7242] STAMP obj/default.stamp
+    [3768/3768] AR obj/libwebrtc.a
+
+    real    2m18.006s
+    user    23m53.467s
+    sys     1m50.566s
     ```
 
 ### llvm for C++ stdlib
+* get llvm original commit-id from libc++ of webrtc source tree
+  ```
+  webrtc-checkout/src/third_party/libc++/src ((HEAD detached at 7cf98622a))$ git log -1 .
+  commit 7cf98622abaf832e2d4784889ebc69d5b6fde4d8 (HEAD)
+  Author: ZhangYin <zhangyin2018@iscas.ac.cn>
+  Date:   Fri Sep 29 22:32:54 2023 +0800
+
+      [libcxx] <experimental/simd> Add _LIBCPP_HIDE_FROM_ABI to internal br… (#66977)
+
+      …oadcast functions
+
+      NOKEYCHECK=True
+      GitOrigin-RevId: cf31d0eca85f4f5b273dd1ad8f76791ff726c28f
+  ```
+```
+sudo apt-get install ninja-build
+```
 * https://libcxx.llvm.org/BuildingLibcxx.html
 * Find right version of clang
 
@@ -104,7 +134,9 @@ cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;lib
 -DLIBCXX_PSTL_CPU_BACKEND="std_thread" \
 ```
 ```
-ninja -C build cxx cxxabi
+llvm-project ((HEAD detached at cf31d0eca85f))$ ninja -C build cxx cxxabi
+ninja: Entering directory `build'
+[1161/1161] Linking CXX static library lib/libc++.a
 ```
 
 
@@ -115,30 +147,30 @@ ninja -C build cxx cxxabi
 | --- | --- | --- |
 | socket.io-client | | latest |
 | spdlog | | v1.9.2|
-| abseil-cpp | | dc37a887fd * |
+| abseil-cpp | | 6ab667fd8d * |
 
 #### `abseil-cpp`
 ```
-webrtc-checkout/src/third_party/abseil-cpp ((HEAD detached at 770155421d2))$ git log -1 .
-commit ebdeb0dc6980674c597525d712f5826e7e081da0
-Author: Mirko Bonadei <mbonadei@chromium.org>
-Date:   Wed Jun 14 12:03:45 2023 +0000
+webrtc_6045/src/third_party/abseil-cpp ((HEAD detached at 6b9e7118bf8))$ git log -1 .
+commit 5872ee3c045ef92477844db6af375e2c12e87726
+Author: Danil Chapovalov <danilchap@chromium.org>
+Date:   Thu Sep 28 07:57:13 2023 +0000
 
-    Roll abseil_revision 1285ca4b4f..dc37a887fd
+    Roll abseil_revision d91f39ab5b..6ab667fd8d
 
     Change Log:
-    https://chromium.googlesource.com/external/github.com/abseil/abseil-cpp/+log/1285ca4b4f..dc37a887fd
+    https://chromium.googlesource.com/external/github.com/abseil/abseil-cpp/+log/d91f39ab5b..6ab667fd8d
     Full diff:
-    https://chromium.googlesource.com/external/github.com/abseil/abseil-cpp/+/1285ca4b4f..dc37a887fd
+    https://chromium.googlesource.com/external/github.com/abseil/abseil-cpp/+/d91f39ab5b..6ab667fd8d
 
     Bug: None
-    Change-Id: I18c63b7afbf721ce9d3e36e5b797786a1d40b84b
-    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/4613486
-    Reviewed-by: Danil Chapovalov <danilchap@chromium.org>
-    Commit-Queue: Mirko Bonadei <mbonadei@chromium.org>
-    Cr-Commit-Position: refs/heads/main@{#1157458}
+    Change-Id: I9cefcca21aa0d3a142c9a9f637cc31783f7c8f67
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/4887263
+    Reviewed-by: Mirko Bonadei <mbonadei@chromium.org>
+    Commit-Queue: Danil Chapovalov <danilchap@chromium.org>
+    Cr-Commit-Position: refs/heads/main@{#1202406}
     NOKEYCHECK=True
-    GitOrigin-RevId: 97d7b04952d774f89e9060f57800a207b4f1e30b
+    GitOrigin-RevId: d55c179d96e3bc5fe4df07b73482de65546b657f
 
 ```
 
