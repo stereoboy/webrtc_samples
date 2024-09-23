@@ -32,7 +32,7 @@
  *   app/src/main/java/com/example/hellolibs/MainActivity.java
  */
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_hellolibs_MainActivity_stringFromJNI(JNIEnv *env, jobject thiz) {
+Java_com_stereoboy_peer_1audio_1client_MainActivity_stringFromJNI(JNIEnv *env, jobject thiz) {
     // Just for simplicity, we do this right away; correct way would do it in
     // another thread...
     auto ticks = GetTicks();
