@@ -30,3 +30,73 @@ file(MAKE_DIRECTORY ${lib_build_DIR})
 add_subdirectory(${lib_src_DIR}/gmath ${lib_build_DIR}/gmath)
 add_subdirectory(${lib_src_DIR}/gperf ${lib_build_DIR}/gperf)
 
+#set(BUILD_SHARED_LIBS ON)
+add_subdirectory(${lib_src_DIR}/socket.io-client-cpp ${lib_build_DIR}/socket.io-client-cpp)
+
+# copy out the lib binary... need to leave the static lib around to pass gradle check
+set(distribution_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../distribution)
+set_target_properties(sioclient PROPERTIES ARCHIVE_OUTPUT_DIRECTORY  "${distribution_DIR}/lib/${ANDROID_ABI}")
+set_target_properties(sioclient PROPERTIES LIBRARY_OUTPUT_DIRECTORY  "${distribution_DIR}/lib/${ANDROID_ABI}")
+set_target_properties(sioclient PROPERTIES RUNTIME_OUTPUT_DIRECTORY  "${distribution_DIR}/bin/${ANDROID_ABI}")
+
+#
+# FIXME: copy headers to the distribution directory
+#
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_client.h" DESTINATION "${distribution_DIR}/include")
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_socket.h" DESTINATION "${distribution_DIR}/include")
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_message.h" DESTINATION "${distribution_DIR}/include")
+
+# copy out lib header file...
+#add_custom_command(TARGET sioclient POST_BUILD
+#        COMMAND "${CMAKE_COMMAND}" -E
+#        copy "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_client.h"
+#        "${distribution_DIR}/include/sio_client.h"
+#        #                   **** the following 2 lines are for potential future debug purpose ****
+#        #                   COMMAND "${CMAKE_COMMAND}" -E
+#        #                   remove_directory "${CMAKE_CURRENT_BINARY_DIR}"
+#        COMMENT "Copying socket.io-client-cpp to output directory")
+#
+#add_custom_command(OUTPUT "${distribution_DIR}/include/sio_socket.h"
+#        COMMAND "${CMAKE_COMMAND}" -E
+#        copy "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_socket.h"
+#        "${distribution_DIR}/include/sio_socket.h"
+#        #                   **** the following 2 lines are for potential future debug purpose ****
+#        #                   COMMAND "${CMAKE_COMMAND}" -E
+#        #                   remove_directory "${CMAKE_CURRENT_BINARY_DIR}"
+#        COMMENT "Copying socket.io-client-cpp to output directory")
+#
+#add_custom_command(OUTPUT "${distribution_DIR}/include/sio_message.h"
+#        COMMAND "${CMAKE_COMMAND}" -E
+#        copy "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_message.h"
+#        "${distribution_DIR}/include/sio_message.h"
+#        #                   **** the following 2 lines are for potential future debug purpose ****
+#        #                   COMMAND "${CMAKE_COMMAND}" -E
+#        #                   remove_directory "${CMAKE_CURRENT_BINARY_DIR}"
+#        COMMENT "Copying socket.io-client-cpp to output directory")
+
+#add_custom_target(copy_sio_client_h ALL
+#        COMMAND "${CMAKE_COMMAND}" -E
+#        copy "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_client.h"
+#        "${distribution_DIR}/include"
+#        #                   **** the following 2 lines are for potential future debug purpose ****
+#        #                   COMMAND "${CMAKE_COMMAND}" -E
+#        #                   remove_directory "${CMAKE_CURRENT_BINARY_DIR}"
+#        COMMENT "Copying socket.io-client-cpp to output directory")
+#
+#add_custom_target(copy_sio_socket_h ALL
+#        COMMAND "${CMAKE_COMMAND}" -E
+#        copy "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_socket.h"
+#        "${distribution_DIR}/include"
+#        #                   **** the following 2 lines are for potential future debug purpose ****
+#        #                   COMMAND "${CMAKE_COMMAND}" -E
+#        #                   remove_directory "${CMAKE_CURRENT_BINARY_DIR}"
+#        COMMENT "Copying socket.io-client-cpp to output directory")
+#
+#add_custom_target(copy_sio_message_h ALL
+#        COMMAND "${CMAKE_COMMAND}" -E
+#        copy "${CMAKE_CURRENT_SOURCE_DIR}/socket.io-client-cpp/src/sio_message.h"
+#        "${distribution_DIR}/include"
+#        #                   **** the following 2 lines are for potential future debug purpose ****
+#        #                   COMMAND "${CMAKE_COMMAND}" -E
+#        #                   remove_directory "${CMAKE_CURRENT_BINARY_DIR}"
+#        COMMENT "Copying socket.io-client-cpp to output directory")

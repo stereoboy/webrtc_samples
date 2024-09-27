@@ -7,3 +7,6 @@
 [submodule "cpp/peer_clients/lib/abseil-cpp"]
 	path = cpp/peer_clients/lib/abseil-cpp
 	url = git@github.com:abseil/abseil-cpp.git
+[submodule "android/gen-libs/src/main/cpp/socket.io-client-cpp"]
+	path = android/gen-libs/src/main/cpp/socket.io-client-cpp
+	url = https://github.com/socketio/socket.io-client-cpp.git
