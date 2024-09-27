@@ -17,7 +17,9 @@ package com.stereoboy.peer_datachannel_client;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
+
 /*
  * Simple Java UI to trigger jni function. It is exactly same as Java code
  * in hello-jni.
@@ -26,14 +28,39 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.i("PeerDataChannel", "onCreate()");
         super.onCreate(savedInstanceState);
         TextView tv = new TextView(this);
+        initNative();
         tv.setText( stringFromJNI() );
         setContentView(tv);
     }
+
+    @Override
+    protected void onDestroy() {
+        deinitNative();
+        super.onDestroy();
+        Log.i("PeerDataChannel", "onDestroy()");
+    }
+
+    @Override
+    protected void onStart() {
+        Log.i("PeerDataChannel", "onStart()");
+        super.onStart();
+    }
+
+    @Override
+    protected void onStop() {
+        Log.i("PeerDataChannel", "onStop()");
+        super.onStop();
+    }
+
     public native String  stringFromJNI();
+    public native void  initNative();
+    public native void  deinitNative();
+
+    private long nativeData;
     static {
         System.loadLibrary("hello-libs");
     }
-
 }

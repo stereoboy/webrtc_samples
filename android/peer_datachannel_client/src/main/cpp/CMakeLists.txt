@@ -19,6 +19,7 @@ cmake_minimum_required(VERSION 3.4.1)
 
 # configure import libs
 set(distribution_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../distribution)
+set(common_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common)
 
 add_library(lib_gmath STATIC IMPORTED)
 set_target_properties(lib_gmath PROPERTIES IMPORTED_LOCATION
@@ -32,18 +33,23 @@ add_library(lib_gperf SHARED IMPORTED)
 set_target_properties(lib_gperf PROPERTIES IMPORTED_LOCATION
     ${distribution_DIR}/gperf/lib/${ANDROID_ABI}/libgperf.so)
 
+add_library(lib_sio_client STATIC IMPORTED)
+set_target_properties(lib_sio_client PROPERTIES IMPORTED_LOCATION
+        ${distribution_DIR}/lib/${ANDROID_ABI}/libsioclient.a)
+
 # build application's shared lib
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(hello-libs SHARED
-            hello-libs.cpp)
+            hello-libs.cpp
+            peer_datachannel_client.cpp)
 
 target_include_directories(hello-libs PRIVATE
-                           ${distribution_DIR}/gmath/include
-                           ${distribution_DIR}/gperf/include)
+        ${distribution_DIR}/include
+        ${common_DIR}/include)
 
 target_link_libraries(hello-libs
                       android
-                      lib_gmath
-                      lib_gperf
+                      lib_sio_client
                       log)
