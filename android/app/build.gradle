@@ -41,5 +41,5 @@ dependencies {
     // uncomment out this one to generate lib binaries,
     // and also uncommented out the one in settings.gradle
     // after lib is generated, just comment them out again
-//    api project(':gen-libs')
+    api project(':gen-libs')
 }
