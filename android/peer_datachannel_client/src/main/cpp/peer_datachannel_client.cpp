@@ -595,16 +595,19 @@ public:
 //}
 
 static jfieldID custom_data_field_id;
-
+static void *app_thread_func(void *userdata);
 struct NativeData {
-    std::shared_ptr<PeerDataChannelClient> client = nullptr;
+//    std::shared_ptr<PeerDataChannelClient> client = nullptr;
+    pthread_t           app_thread;
+    std::atomic_bool    system_on = {false};
 };
 
 static std::unique_ptr<NativeData> data = nullptr;
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1datachannel_1client_MainActivity_initNative(JNIEnv *env, jobject thiz) {
-
+    LOGI("PeerDataChannel", "%s", __PRETTY_FUNCTION__ );
+#if 0
 //    auto logger = spdlog::stdout_color_mt("PeerDataChannel");
 //    absl::SetProgramUsageMessage(
 //            "Example usage: ./peer_datachanenl_client --server=localhost --port=5000\n");
@@ -663,9 +666,6 @@ Java_com_stereoboy_peer_1datachannel_1client_MainActivity_initNative(JNIEnv *env
 //    LOGI("PeerDataChannel", "Stopped.");
 
 
-    jclass klass = env->GetObjectClass(thiz);
-    custom_data_field_id = env->GetFieldID (klass, "nativeData", "J");
-
 #if 0 // FIXME: shared_ptr in memory allocated by std::malloc is not working well
     struct NativeData *data = (struct NativeData *)std::malloc(sizeof(struct NativeData));
     if (!data) {
@@ -677,13 +677,22 @@ Java_com_stereoboy_peer_1datachannel_1client_MainActivity_initNative(JNIEnv *env
 #endif
     data->client = client;
 #if 0
+    jclass klass = env->GetObjectClass(thiz);
+    custom_data_field_id = env->GetFieldID (klass, "nativeData", "J");
     env->SetLongField (thiz, custom_data_field_id, (jlong)data);
+#endif
+#else
+    data = std::make_unique<NativeData>();
+    pthread_create(&data->app_thread, nullptr, app_thread_func, nullptr);
+    data->system_on = true;
 #endif
     return;
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1datachannel_1client_MainActivity_deinitNative(JNIEnv *env, jobject thiz) {
+    LOGI("PeerDataChannel", "%s", __PRETTY_FUNCTION__ );
+#if 0
 #if 0
     struct NativeData *data = (struct NativeData *)env->GetLongField (thiz, custom_data_field_id);
 #endif
@@ -727,5 +736,69 @@ Java_com_stereoboy_peer_1datachannel_1client_MainActivity_deinitNative(JNIEnv *e
     env->SetLongField (thiz, custom_data_field_id, (jlong) nullptr);
 #endif
     LOGI("PeerDataChannel", "Stopped.");
+#else
+    data->system_on = false;
+#endif
     return;
+}
+
+static void *app_thread_func(void *userdata) {
+
+//    auto logger = spdlog::stdout_color_mt("PeerDataChannel");
+//    absl::SetProgramUsageMessage(
+//            "Example usage: ./peer_datachanenl_client --server=localhost --port=5000\n");
+//    absl::ParseCommandLine(argc, argv);
+
+    LOGI("PeerDataChannel", "Starting PeerDataChannelClient");
+    // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
+
+    auto client = std::make_shared<PeerDataChannelClient>();
+//    auto client = rtc::make_ref_counted<PeerDataChannelClient>();
+//
+//    rtc::InitializeSSL();
+
+    client->init_webrtc();
+
+    client->init_signaling();
+
+    LOGI("PeerDataChannel", "Connecting to %s:%d", SERVER_HOSTNAME, SERVER_PORT);
+    client->connect_sync(SERVER_HOSTNAME, SERVER_PORT);
+
+    // client->query_peer_type();
+
+//    client->wait_for_data_channel_connection();
+    try {
+        int count = 0;
+        auto b = std::chrono::high_resolution_clock::now();
+        while(data->system_on && client->is_connected()) {
+            // for (int i = 0; i < 10; i++) {
+            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            if (client->getType() == PeerClient::PeerType::Caller) {
+                std::string message = "hello world";
+                client->send_message_sync(message);
+                // client->wait_for_message();
+
+                auto e = std::chrono::high_resolution_clock::now();
+                double elapsed = std::chrono::duration<double, std::milli>(e - b).count();
+                count++;
+                if (elapsed > 10000) {
+                    const float hz = count*1000/elapsed;
+                    LOGI("PeerDataChannel", "Sent %d messages in %f ms (%f Hz)", count, elapsed, hz);
+                    count = 0;
+                    b = std::chrono::high_resolution_clock::now();
+                }
+            } else {
+                LOGI("PeerDataChannel", "Callee main thread is doing nothing.");
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
+        }
+    } catch (std::exception &e) {
+        LOGE("PeerDataChannel", "Terminated by Interrupt: %s ", e.what());
+    }
+//
+////    rtc::CleanupSSL();
+    client->deinit_signaling();
+
+    LOGI("PeerDataChannel", "Stopped.");
+    return nullptr;
 }

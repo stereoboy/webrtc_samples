@@ -84,7 +84,15 @@ public:
 
     virtual void on_close(sio::client::close_reason const& reason) {
         std::unique_lock<std::mutex> lock(msg_mutex_);
-        LOGI("PeerClient", "Connection closed: %d", int(reason));
+        std::string reason_str = "";
+        if (reason == sio::client::close_reason_drop)
+            reason_str = "drop";
+        else if (reason == sio::client::close_reason_normal)
+            reason_str = "normal";
+        else
+            reason_str = "undefined";
+
+        LOGI("PeerClient", "Connection closed: %s", reason_str.c_str());
         connected_ = false;
     }
 
