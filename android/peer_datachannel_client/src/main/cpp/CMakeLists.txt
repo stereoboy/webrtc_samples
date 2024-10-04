@@ -17,6 +17,12 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
+set(webrtc_out_DIR ${WEBRTC_DIR}/src/out/${ANDROID_ABI})
+set(webrtc_src_DIR ${WEBRTC_DIR}/src)
+add_library(lib_webrtc STATIC IMPORTED)
+set_target_properties(lib_webrtc PROPERTIES IMPORTED_LOCATION
+        ${webrtc_out_DIR}/obj/libwebrtc.a)
+
 # configure import libs
 set(distribution_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../distribution)
 set(common_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common)
@@ -47,9 +53,49 @@ add_library(hello-libs SHARED
 
 target_include_directories(hello-libs PRIVATE
         ${distribution_DIR}/include
-        ${common_DIR}/include)
+        ${common_DIR}/include
+        ${webrtc_src_DIR}
+        ${webrtc_src_DIR}/third_party/abseil-cpp
+        )
+
+target_compile_definitions(
+        hello-libs PUBLIC
+        WEBRTC_POSIX
+        WEBRTC_LINUX
+        __STDC_CONSTANT_MACROS
+        __STDC_FORMAT_MACROS
+        _FORTIFY_SOURCE=2
+        _GNU_SOURCE
+        ANDROID
+        HAVE_SYS_UIO_H
+        ANDROID_NDK_VERSION_ROLL=r21d_1
+        CR_CLANG_REVISION=\"llvmorg-18-init-4631-gd50b56d1-1\"
+        NDEBUG
+        NVALGRIND
+        DYNAMIC_ANNOTATIONS_ENABLED=0
+        WEBRTC_ENABLE_PROTOBUF=1
+        WEBRTC_STRICT_FIELD_TRIALS=0
+        WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE
+        RTC_ENABLE_VP9
+        RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY
+        WEBRTC_HAVE_SCTP
+        WEBRTC_ENABLE_LIBEVENT
+        WEBRTC_LIBRARY_IMPL
+        WEBRTC_ENABLE_AVX2
+        WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1
+        WEBRTC_POSIX
+        WEBRTC_LINUX
+        WEBRTC_ANDROID
+        ABSL_ALLOCATOR_NOTHROW=1
+        LIBYUV_DISABLE_NEON
+        GOOGLE_PROTOBUF_NO_RTTI
+        GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+        GOOGLE_PROTOBUF_INTERNAL_DONATE_STEAL_INLINE=0
+        HAVE_PTHREAD
+)
 
 target_link_libraries(hello-libs
                       android
                       lib_sio_client
+                      lib_webrtc
                       log)

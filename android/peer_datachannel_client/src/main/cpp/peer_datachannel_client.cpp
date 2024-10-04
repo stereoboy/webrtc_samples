@@ -9,19 +9,20 @@
 
 #include <chrono>
 
-#include <csignal>
+//#include <csignal>
+#include <memory>
 #include <thread>
 
 #include <sio_client.h>
-#include <memory>
+//#include <memory>
 // #include <asio.hpp>
 // #include <asio/ssl.hpp>
 
-//#include <api/peer_connection_interface.h>
-//#include <api/create_peerconnection_factory.h>
-//#include <rtc_base/ssl_adapter.h>
-// #include <rtc_base/thread.h>
-// #include <system_wrappers/include/field_trial.h>
+#include <api/peer_connection_interface.h>
+#include <api/create_peerconnection_factory.h>
+#include <rtc_base/ssl_adapter.h>
+ #include <rtc_base/thread.h>
+ #include <system_wrappers/include/field_trial.h>
 
 #include "logging.h"
 #include "peer_client.h"
@@ -39,7 +40,7 @@
 //"The port on which the server is listening.");
 
 
-#if 0
+
 class DummySetSessionDescriptionObserver
         : public webrtc::SetSessionDescriptionObserver {
 public:
@@ -55,22 +56,21 @@ public:
         LOGI("%s", __PRETTY_FUNCTION__);
     }
 };
-#endif
 
-class PeerDataChannelClient : public PeerClient
-//                              public webrtc::PeerConnectionObserver,
-//                              public webrtc::DataChannelObserver,
-//                              public webrtc::CreateSessionDescriptionObserver
+class PeerDataChannelClient : public PeerClient,
+                              public webrtc::PeerConnectionObserver,
+                              public webrtc::DataChannelObserver,
+                              public webrtc::CreateSessionDescriptionObserver
 {
 
-//    rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
-//    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
-//
-//    std::unique_ptr<rtc::Thread> network_thread_;
-//    std::unique_ptr<rtc::Thread> worker_thread_;
-//    std::unique_ptr<rtc::Thread> signaling_thread_;
-//    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
-//    webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
+    rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_ = nullptr;
+    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
+
+    std::unique_ptr<rtc::Thread> network_thread_;
+    std::unique_ptr<rtc::Thread> worker_thread_;
+    std::unique_ptr<rtc::Thread> signaling_thread_;
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
+    webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
 
     std::mutex                      data_channel_mutex_;
     std::condition_variable_any     data_channel_cond_;
@@ -81,38 +81,37 @@ public:
     }
 
     virtual ~PeerDataChannelClient() {
-//        if (data_channel_) {
-//            data_channel_->Close();
-//            data_channel_ = nullptr;
-//        }
-//
-//        if (peer_connection_) {
-//            peer_connection_->Close();
-//            peer_connection_ = nullptr;
-//        }
-//
-//        if (peer_connection_factory_) {
-//            peer_connection_factory_ = nullptr;
-//        }
-//
-//        if (network_thread_) {
-//            network_thread_->Stop();
-//            network_thread_ = nullptr;
-//        }
-//
-//        if (worker_thread_) {
-//            worker_thread_->Stop();
-//            worker_thread_ = nullptr;
-//        }
-//
-//        if (signaling_thread_) {
-//            signaling_thread_->Stop();
-//            signaling_thread_ = nullptr;
-//        }
+        if (data_channel_) {
+            data_channel_->Close();
+            data_channel_ = nullptr;
+        }
+
+        if (peer_connection_) {
+            peer_connection_->Close();
+            peer_connection_ = nullptr;
+        }
+
+        if (peer_connection_factory_) {
+            peer_connection_factory_ = nullptr;
+        }
+
+        if (network_thread_) {
+            network_thread_->Stop();
+            network_thread_ = nullptr;
+        }
+
+        if (worker_thread_) {
+            worker_thread_->Stop();
+            worker_thread_ = nullptr;
+        }
+
+        if (signaling_thread_) {
+            signaling_thread_->Stop();
+            signaling_thread_ = nullptr;
+        }
         LOGI("PeerDataChannelClient", "PeerDataChannelClient deleted");
     }
 
-#if 0
     //
     // PeerConnectionObserver implementation.
     //
@@ -125,15 +124,15 @@ public:
     // void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {}
 
     void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnAddStream: {}", stream.get()->id());
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnAddStream: %s", stream.get()->id().c_str());
     };
 
     void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionObserver::RemoveStream: {}", stream.get()->id());
+        LOGI("PeerDataChannelClient", "PeerConnectionObserver::RemoveStream: %s", stream.get()->id().c_str());
     };
 
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnDataChannel: {}", channel->label());
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnDataChannel: %s", channel->label().c_str());
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
 
         data_channel_ = channel;
@@ -158,10 +157,10 @@ public:
 
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override {
 
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceCandidate: {}, {}", candidate->sdp_mid(), candidate->sdp_mline_index());
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceCandidate: %s, %d", candidate->sdp_mid().c_str(), candidate->sdp_mline_index());
         std::string candidate_str;
         candidate->ToString(&candidate_str);
-        LOGI("PeerDataChannelClient", "\t- {}", candidate_str);
+        LOGI("PeerDataChannelClient", "\t- %s", candidate_str.c_str());
 
         sio::message::ptr msg = sio::object_message::create();
         msg->get_map()["sdp_mid"] = sio::string_message::create(candidate->sdp_mid());
@@ -174,7 +173,7 @@ public:
             if (ok) {
                 LOGI("PeerDataChannelClient", "ICE Candidate sent successfully");
             } else {
-                LOGE("PeerDataChannelClient", "ICE Candidate sent failed to send: {}", message);
+                LOGE("PeerDataChannelClient", "ICE Candidate sent failed to send: %s", message.c_str());
             }
         });
 
@@ -189,7 +188,7 @@ public:
 
         std::string sdp_str;
         desc->ToString(&sdp_str);
-        LOGI("PeerDataChannelClient", "SDP:\n{}", sdp_str);
+        LOGI("PeerDataChannelClient", "SDP:\n%s", sdp_str.c_str());
 
         sio::message::ptr msg = sio::string_message::create(sdp_str);
 
@@ -201,7 +200,7 @@ public:
                 if (ok) {
                     LOGI("PeerDataChannelClient", "Offer SDP sent successfully");
                 } else {
-                    LOGE("PeerDataChannelClient", "Offer SDP failed to send: {}", message);
+                    LOGE("PeerDataChannelClient", "Offer SDP failed to send: %s", message.c_str());
                 }
             });
         } else {
@@ -212,7 +211,7 @@ public:
                 if (ok) {
                     LOGI("PeerDataChannelClient", "Answer SDP sent successfully");
                 } else {
-                    LOGE("PeerDataChannelClient", "Answer SDP failed to send: {}", message);
+                    LOGE("PeerDataChannelClient", "Answer SDP failed to send: %s", message.c_str());
                 }
             });
         }
@@ -245,7 +244,7 @@ public:
     void OnBufferedAmountChange(uint64_t sent_data_size) override {
         // LOGI("PeerDataChannelClient", "DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
     };
-#endif
+
     //
     //
     //
@@ -395,7 +394,6 @@ public:
     }
 
     bool init_webrtc(void) {
-#if 0
         webrtc::PeerConnectionInterface::IceServer ice_server;
         ice_server.uri = "stun:stun.l.google.com:19302";
         configuration_.servers.push_back(ice_server);
@@ -449,51 +447,44 @@ public:
         }
 
         data_channel_->RegisterObserver(this);
-#endif
         return true;
     }
 
     bool create_offer(void) {
-#if 0
         peer_connection_->CreateOffer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
-#endif
         return true;
     }
 
     bool receive_answer(const std::string &sdp_str) {
-#if 0
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::SessionDescriptionInterface> session_description = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, sdp_str, &error);
         if (session_description == nullptr) {
-            LOGE("PeerDataChannelClient", "Failed to create session description: {}", error.description);
+            LOGE("PeerDataChannelClient", "Failed to create session description: %s", error.description.c_str());
             return false;
         }
         peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create().get(), session_description.release());
-#endif
         return true;
     }
 
     bool receive_offer_create_answer(const std::string &sdp_str) {
-#if 0
+
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::SessionDescriptionInterface> session_description = webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, sdp_str, &error);
         if (session_description == nullptr) {
-            LOGE("PeerDataChannelClient", "Failed to create session description: {}", error.description);
+            LOGE("PeerDataChannelClient", "Failed to create session description: %s", error.description.c_str());
             return false;
         }
 
         peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create().get(), session_description.release());
         peer_connection_->CreateAnswer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
-#endif
         return true;
     }
 
     bool add_ice_candidate(const std::string &sdp_mid, int sdp_mline_index, const std::string &candidate, std::string &err_message) {
-#if 0
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::IceCandidateInterface> ice_candidate(webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, &error));
         if (!ice_candidate.get()) {
-            LOGE("PeerDataChannelClient", "Failed to create ICE Candidate: {}", error.description);
+            LOGE("PeerDataChannelClient", "Failed to create ICE Candidate: %s", error.description.c_str());
             err_message = error.description;
             return false;
         }
@@ -502,8 +493,7 @@ public:
             err_message = "Failed to add ICE candidate";
             return false;
         }
-        LOGI("PeerDataChannelClient", "Added ICE Candidate: {}", candidate);
-#endif
+        LOGI("PeerDataChannelClient", "Added ICE Candidate: %s", candidate.c_str());
         return true;
     }
 
@@ -517,20 +507,16 @@ public:
     }
 
     void send_message_sync(const std::string &message) {
-#if 0
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
         // LOGI("PeerDataChannelClient", "Sending message: {}", message);
         webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(message.c_str(), message.size() + 1), true);
         data_channel_->Send(buffer);
         data_channel_cond_.wait(data_channel_mutex_);
-#endif
     }
 
     void wait_for_message(void) {
-#if 0
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
         data_channel_cond_.wait(data_channel_mutex_);
-#endif
     }
 };
 //
@@ -752,8 +738,8 @@ static void *app_thread_func(void *userdata) {
     LOGI("PeerDataChannel", "Starting PeerDataChannelClient");
     // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
 
-    auto client = std::make_shared<PeerDataChannelClient>();
-//    auto client = rtc::make_ref_counted<PeerDataChannelClient>();
+//    auto client = std::make_shared<PeerDataChannelClient>();
+    auto client = rtc::make_ref_counted<PeerDataChannelClient>();
 //
 //    rtc::InitializeSSL();
 

@@ -1,17 +1,29 @@
 apply plugin: 'com.android.application'
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
+def webrtcDir = localProperties.getProperty("webrtc.dir")
+
 android {
     compileSdkVersion 29
     ndkVersion "21.4.7075529"
     defaultConfig {
         applicationId = 'com.stereoboy.peer_datachannel_client'
-        minSdkVersion 14
+        minSdkVersion 23
         targetSdkVersion 28
         versionCode = 1
         versionName = '1.0'
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_STL=c++_static'
+                //
+                // reference: https://stackoverflow.com/questions/42715120/how-can-i-pass-specific-arguments-example-opencv-dir-to-cmake-through-gradle
+                //
+                arguments '-DANDROID_STL=c++_static', '-DWEBRTC_DIR='+webrtcDir.toString()
             }
         }
     }
