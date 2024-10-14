@@ -23,8 +23,11 @@ android {
                 //
                 // reference: https://stackoverflow.com/questions/42715120/how-can-i-pass-specific-arguments-example-opencv-dir-to-cmake-through-gradle
                 //
-                arguments '-DANDROID_STL=c++_static', '-DWEBRTC_DIR='+webrtcDir.toString()
+                arguments '-DANDROID_STL=c++_static', '-DWEBRTC_DIR='+webrtcDir.toString(), "-DCMAKE_VERBOSE_MAKEFILE=ON"
             }
+        }
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
     }
     buildTypes {

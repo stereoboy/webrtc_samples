@@ -116,7 +116,7 @@ public:
     // PeerConnectionObserver implementation.
     //
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnSignalingChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnSignalingChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
     // void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
     //                 const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>&
@@ -144,15 +144,15 @@ public:
     }
 
     void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceConnectionChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceConnectionChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
 
     virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnConnectionChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnConnectionChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
 
     void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceGatheringChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceGatheringChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
 
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override {
@@ -218,7 +218,7 @@ public:
     };
 
     void OnFailure(webrtc::RTCError error) override {
-        LOGI("PeerDataChannelClient", "CreateSessionDescriptionObserver::OnFailure({})", error.message());
+        LOGI("PeerDataChannelClient", "CreateSessionDescriptionObserver::OnFailure(%s)", error.message());
     };
 
     //
@@ -432,7 +432,7 @@ public:
             peer_connection_ = std::move(error_or_peer_connection.value());;
             LOGI("PeerDataChannelClient", "peer_connection_ created successfully.");
         } else {
-            LOGE("PeerDataChannelClient", "Failed to create PeerConnection: {}", error_or_peer_connection.error().message());
+            LOGE("PeerDataChannelClient", "Failed to create PeerConnection: %s", error_or_peer_connection.error().message());
             return false;
         }
 
@@ -442,7 +442,7 @@ public:
             data_channel_ = std::move(error_or_data_channel.value());
             LOGI("PeerDataChannelClient", "data_channel_ created successfully");
         } else {
-            LOGE("PeerDataChannelClient", "Failed to create DataChannel: {}", error_or_data_channel.error().message());
+            LOGE("PeerDataChannelClient", "Failed to create DataChannel: %s", error_or_data_channel.error().message());
             return false;
         }
 
@@ -738,10 +738,9 @@ static void *app_thread_func(void *userdata) {
     LOGI("PeerDataChannel", "Starting PeerDataChannelClient");
     // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
 
-//    auto client = std::make_shared<PeerDataChannelClient>();
     auto client = rtc::make_ref_counted<PeerDataChannelClient>();
-//
-//    rtc::InitializeSSL();
+
+    rtc::InitializeSSL();
 
     client->init_webrtc();
 
@@ -752,7 +751,7 @@ static void *app_thread_func(void *userdata) {
 
     // client->query_peer_type();
 
-//    client->wait_for_data_channel_connection();
+    client->wait_for_data_channel_connection();
     try {
         int count = 0;
         auto b = std::chrono::high_resolution_clock::now();
@@ -781,8 +780,8 @@ static void *app_thread_func(void *userdata) {
     } catch (std::exception &e) {
         LOGE("PeerDataChannel", "Terminated by Interrupt: %s ", e.what());
     }
-//
-////    rtc::CleanupSSL();
+
+    rtc::CleanupSSL();
     client->deinit_signaling();
 
     LOGI("PeerDataChannel", "Stopped.");
