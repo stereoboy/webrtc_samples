@@ -109,14 +109,14 @@ public:
             signaling_thread_->Stop();
             signaling_thread_ = nullptr;
         }
-        LOGI("PeerDataChannelClient", "PeerDataChannelClient deleted");
+        LOGI(name_.c_str(), "PeerDataChannelClient deleted");
     }
 
     //
     // PeerConnectionObserver implementation.
     //
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnSignalingChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnSignalingChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
     // void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
     //                 const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>&
@@ -124,15 +124,15 @@ public:
     // void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {}
 
     void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnAddStream: %s", stream.get()->id().c_str());
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnAddStream: %s", stream.get()->id().c_str());
     };
 
     void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionObserver::RemoveStream: %s", stream.get()->id().c_str());
+        LOGI(name_.c_str(), "PeerConnectionObserver::RemoveStream: %s", stream.get()->id().c_str());
     };
 
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnDataChannel: %s", channel->label().c_str());
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnDataChannel: %s", channel->label().c_str());
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
 
         data_channel_ = channel;
@@ -140,27 +140,27 @@ public:
         data_channel_cond_.notify_all();
     }
     void OnRenegotiationNeeded() override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnRenegotiationNeeded");
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnRenegotiationNeeded");
     }
 
     void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceConnectionChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnIceConnectionChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
 
     virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnConnectionChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnConnectionChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
 
     void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override {
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceGatheringChange: {}", webrtc::PeerConnectionInterface::AsString(new_state));
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnIceGatheringChange: %s", webrtc::PeerConnectionInterface::AsString(new_state).data());
     }
 
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override {
 
-        LOGI("PeerDataChannelClient", "PeerConnectionInterface::OnIceCandidate: %s, %d", candidate->sdp_mid().c_str(), candidate->sdp_mline_index());
+        LOGI(name_.c_str(), "PeerConnectionInterface::OnIceCandidate: %s, %d", candidate->sdp_mid().c_str(), candidate->sdp_mline_index());
         std::string candidate_str;
         candidate->ToString(&candidate_str);
-        LOGI("PeerDataChannelClient", "\t- %s", candidate_str.c_str());
+        LOGI(name_.c_str(), "\t- %s", candidate_str.c_str());
 
         sio::message::ptr msg = sio::object_message::create();
         msg->get_map()["sdp_mid"] = sio::string_message::create(candidate->sdp_mid());
@@ -171,9 +171,9 @@ public:
             bool ok = msg[0]->get_map()["ok"]->get_bool();
             std::string message = msg[0]->get_map()["message"]->get_string();
             if (ok) {
-                LOGI("PeerDataChannelClient", "ICE Candidate sent successfully");
+                LOGI(name_.c_str(), "ICE Candidate sent successfully");
             } else {
-                LOGE("PeerDataChannelClient", "ICE Candidate sent failed to send: %s", message.c_str());
+                LOGE(name_.c_str(), "ICE Candidate sent failed to send: %s", message.c_str());
             }
         });
 
@@ -183,12 +183,12 @@ public:
     // CreateSessionDescriptionObserver implementation
     //
     void OnSuccess(webrtc::SessionDescriptionInterface *desc) override {
-        LOGI("PeerDataChannelClient", "CreateSessionDescriptionObserver::OnSuccess({})");
+        LOGI(name_.c_str(), "CreateSessionDescriptionObserver::OnSuccess({})");
         peer_connection_->SetLocalDescription(DummySetSessionDescriptionObserver::Create().get(), desc);
 
         std::string sdp_str;
         desc->ToString(&sdp_str);
-        LOGI("PeerDataChannelClient", "SDP:\n%s", sdp_str.c_str());
+        LOGI(name_.c_str(), "SDP:\n%s", sdp_str.c_str());
 
         sio::message::ptr msg = sio::string_message::create(sdp_str);
 
@@ -198,9 +198,9 @@ public:
                 bool ok = msg[0]->get_map()["ok"]->get_bool();
                 std::string message = msg[0]->get_map()["message"]->get_string();
                 if (ok) {
-                    LOGI("PeerDataChannelClient", "Offer SDP sent successfully");
+                    LOGI(name_.c_str(), "Offer SDP sent successfully");
                 } else {
-                    LOGE("PeerDataChannelClient", "Offer SDP failed to send: %s", message.c_str());
+                    LOGE(name_.c_str(), "Offer SDP failed to send: %s", message.c_str());
                 }
             });
         } else {
@@ -209,29 +209,29 @@ public:
                 bool ok = msg[0]->get_map()["ok"]->get_bool();
                 std::string message = msg[0]->get_map()["message"]->get_string();
                 if (ok) {
-                    LOGI("PeerDataChannelClient", "Answer SDP sent successfully");
+                    LOGI(name_.c_str(), "Answer SDP sent successfully");
                 } else {
-                    LOGE("PeerDataChannelClient", "Answer SDP failed to send: %s", message.c_str());
+                    LOGE(name_.c_str(), "Answer SDP failed to send: %s", message.c_str());
                 }
             });
         }
     };
 
     void OnFailure(webrtc::RTCError error) override {
-        LOGI("PeerDataChannelClient", "CreateSessionDescriptionObserver::OnFailure({})", error.message());
+        LOGI(name_.c_str(), "CreateSessionDescriptionObserver::OnFailure(%s)", error.message());
     };
 
     //
     // DataChannelObserver implementation
     //
     void OnStateChange() override {
-        LOGI("PeerDataChannelClient", "DataChannelObserver::StateChange");
+        LOGI(name_.c_str(), "DataChannelObserver::StateChange");
     };
 
     void OnMessage(const webrtc::DataBuffer &buffer) override {
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
         std::string message(buffer.data.data<char>(), buffer.data.size());
-        // LOGI("PeerDataChannelClient", "DataChannelObserver::OnMessage: {}", message);
+        // LOGI(name_.c_str(), "DataChannelObserver::OnMessage: {}", message);
 
         if (type_ == PeerClient::PeerType::Callee) {
             std::string response = "response";
@@ -242,7 +242,7 @@ public:
     };
 
     void OnBufferedAmountChange(uint64_t sent_data_size) override {
-        // LOGI("PeerDataChannelClient", "DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
+        // LOGI(name_.c_str(), "DataChannelObserver::BufferedAmountChange: {}", sent_data_size);
     };
 
     //
@@ -254,7 +254,7 @@ public:
         sio_client_.socket()->on("set-as-caller", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
                                                                                   {
                                                                                       std::unique_lock<std::mutex> lock(msg_mutex_);
-                                                                                      LOGI("PeerDataChannelClient", "event=%s", name.c_str());
+                                                                                      LOGI(name_.c_str(), "event=%s", name.c_str());
                                                                                       type_ = PeerClient::PeerType::Caller;
                                                                                       sio::message::ptr resp = sio::object_message::create();
                                                                                       resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -266,7 +266,7 @@ public:
         sio_client_.socket()->on("set-as-callee", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
                                                                                   {
                                                                                       std::unique_lock<std::mutex> lock(msg_mutex_);
-                                                                                      LOGI("PeerDataChannelClient", "event=%s", name.c_str());
+                                                                                      LOGI(name_.c_str(), "event=%s", name.c_str());
                                                                                       type_ = PeerClient::PeerType::Callee;
                                                                                       sio::message::ptr resp = sio::object_message::create();
                                                                                       resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -278,10 +278,10 @@ public:
         sio_client_.socket()->on("ready", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
                                                                           {
                                                                               std::unique_lock<std::mutex> lock(msg_mutex_);
-                                                                              LOGI("PeerDataChannelClient", "event=%s", name.c_str());
+                                                                              LOGI(name_.c_str(), "event=%s", name.c_str());
                                                                               if (type_ == PeerClient::PeerType::Caller) {
                                                                                   if (!create_offer()) {
-                                                                                      LOGE("PeerDataChannelClient", "Failed to create Offer");
+                                                                                      LOGE(name_.c_str(), "Failed to create Offer");
                                                                                       sio::message::ptr resp = sio::object_message::create();
                                                                                       resp->get_map()["ok"] = sio::bool_message::create(false);
                                                                                       resp->get_map()["message"] = sio::string_message::create("Failed to create Offer");
@@ -299,12 +299,12 @@ public:
         sio_client_.socket()->on("offer", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
                                                                           {
                                                                               std::unique_lock<std::mutex> lock(msg_mutex_);
-                                                                              LOGI("PeerDataChannelClient", "event=%s", name.c_str());
+                                                                              LOGI(name_.c_str(), "event=%s", name.c_str());
                                                                               if (type_ == PeerClient::PeerType::Callee) {
                                                                                   std::string sdp_str = data->get_string();
-                                                                                  LOGI("PeerDataChannelClient", "received Offer SDP:\n%s", sdp_str.c_str());
+                                                                                  LOGI(name_.c_str(), "received Offer SDP:\n%s", sdp_str.c_str());
                                                                                   if (!receive_offer_create_answer(sdp_str)){
-                                                                                      LOGE("PeerDataChannelClient", "Failed to receive/create Answer");
+                                                                                      LOGE(name_.c_str(), "Failed to receive/create Answer");
                                                                                       sio::message::ptr resp = sio::object_message::create();
                                                                                       resp->get_map()["ok"] = sio::bool_message::create(false);
                                                                                       resp->get_map()["message"] = sio::string_message::create("Failed to receive/create Answer");
@@ -312,7 +312,7 @@ public:
                                                                                       return;
                                                                                   }
                                                                               } else {
-                                                                                  LOGE("PeerDataChannelClient", "Unexpected Offer");
+                                                                                  LOGE(name_.c_str(), "Unexpected Offer");
                                                                               }
                                                                               sio::message::ptr resp = sio::object_message::create();
                                                                               resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -324,12 +324,12 @@ public:
         sio_client_.socket()->on("answer", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
                                                                            {
                                                                                std::unique_lock<std::mutex> lock(msg_mutex_);
-                                                                               LOGI("PeerDataChannelClient", "event=%s", name.c_str());
+                                                                               LOGI(name_.c_str(), "event=%s", name.c_str());
                                                                                if (type_ == PeerClient::PeerType::Caller) {
                                                                                    std::string sdp_str = data->get_string();
-                                                                                   LOGI("PeerDataChannelClient", "received Answer SDP:\n%s", sdp_str.c_str());
+                                                                                   LOGI(name_.c_str(), "received Answer SDP:\n%s", sdp_str.c_str());
                                                                                    if (!receive_answer(sdp_str)) {
-                                                                                       LOGE("PeerDataChannelClient", "Failed to receive Answer");
+                                                                                       LOGE(name_.c_str(), "Failed to receive Answer");
                                                                                        sio::message::ptr resp = sio::object_message::create();
                                                                                        resp->get_map()["ok"] = sio::bool_message::create(false);
                                                                                        resp->get_map()["message"] = sio::string_message::create("Failed to receive Answer");
@@ -337,7 +337,7 @@ public:
                                                                                        return;
                                                                                    }
                                                                                } else {
-                                                                                   LOGE("PeerDataChannelClient", "Unexpected Answer");
+                                                                                   LOGE(name_.c_str(), "Unexpected Answer");
                                                                                }
                                                                                sio::message::ptr resp = sio::object_message::create();
                                                                                resp->get_map()["ok"] = sio::bool_message::create(true);
@@ -349,20 +349,20 @@ public:
         sio_client_.socket()->on("ice", sio::socket::event_listener_aux([&](std::string const& name, sio::message::ptr const& data, bool isAck, sio::message::list &ack_resp)
                                                                         {
                                                                             std::unique_lock<std::mutex> lock(msg_mutex_);
-                                                                            LOGI("PeerDataChannelClient", "event=%s", name.c_str());
+                                                                            LOGI(name_.c_str(), "event=%s", name.c_str());
                                                                             std::string sdp_mid = data->get_map()["sdp_mid"]->get_string();
                                                                             int sdp_mline_index = data->get_map()["sdp_mline_index"]->get_int();
                                                                             std::string candidate = data->get_map()["candidate"]->get_string();
 
                                                                             std::string err_message;
                                                                             if (add_ice_candidate(sdp_mid, sdp_mline_index, candidate, err_message)) {
-                                                                                LOGI("PeerDataChannelClient", "ICE Candidate added successfully");
+                                                                                LOGI(name_.c_str(), "ICE Candidate added successfully");
                                                                                 sio::message::ptr resp = sio::object_message::create();
                                                                                 resp->get_map()["ok"] = sio::bool_message::create(true);
                                                                                 resp->get_map()["message"] = sio::string_message::create("accepted");
                                                                                 ack_resp.push(resp);
                                                                             } else {
-                                                                                LOGE("PeerDataChannelClient", "Failed to add ICE Candidate");
+                                                                                LOGE(name_.c_str(), "Failed to add ICE Candidate");
                                                                                 sio::message::ptr resp = sio::object_message::create();
                                                                                 resp->get_map()["ok"] = sio::bool_message::create(false);
                                                                                 resp->get_map()["message"] = sio::string_message::create(err_message);
@@ -373,24 +373,24 @@ public:
     }
 
     void query_peer_type(void) {
-        LOGI("PeerDataChannelClient", ">>> query-peer-type");
+        LOGI(name_.c_str(), ">>> query-peer-type");
         std::string msg = "dummy";
         sio_client_.socket()->emit("query-peer-type", msg, [&](sio::message::list const& msg) {
             // std::unique_lock<std::mutex> lock(msg_mutex_);
             std::string res = msg[0]->get_string();
             if (res.compare("caller") == 0) {
                 type_ = PeerClient::PeerType::Caller;
-                LOGI("PeerDataChannelClient", "caller");
+                LOGI(name_.c_str(), "caller");
             } else if (res.compare("callee") == 0) {
                 type_ = PeerClient::PeerType::Callee;
-                LOGI("PeerDataChannelClient", "callee");
+                LOGI(name_.c_str(), "callee");
             }
             msg_cond_.notify_all();
         });
 
         std::unique_lock<std::mutex> lock(msg_mutex_);
         msg_cond_.wait(msg_mutex_);
-        LOGI("PeerDataChannelClient", "<<< query-peer-type");
+        LOGI(name_.c_str(), "<<< query-peer-type");
     }
 
     bool init_webrtc(void) {
@@ -430,9 +430,9 @@ public:
         peer_connection_factory_->SetOptions(webrtc::PeerConnectionFactoryInterface::Options());
         if (error_or_peer_connection.ok()) {
             peer_connection_ = std::move(error_or_peer_connection.value());;
-            LOGI("PeerDataChannelClient", "peer_connection_ created successfully.");
+            LOGI(name_.c_str(), "peer_connection_ created successfully.");
         } else {
-            LOGE("PeerDataChannelClient", "Failed to create PeerConnection: {}", error_or_peer_connection.error().message());
+            LOGE(name_.c_str(), "Failed to create PeerConnection: %s", error_or_peer_connection.error().message());
             return false;
         }
 
@@ -440,9 +440,9 @@ public:
         auto error_or_data_channel = peer_connection_->CreateDataChannelOrError("data_channel", &config);
         if (error_or_data_channel.ok()) {
             data_channel_ = std::move(error_or_data_channel.value());
-            LOGI("PeerDataChannelClient", "data_channel_ created successfully");
+            LOGI(name_.c_str(), "data_channel_ created successfully");
         } else {
-            LOGE("PeerDataChannelClient", "Failed to create DataChannel: {}", error_or_data_channel.error().message());
+            LOGE(name_.c_str(), "Failed to create DataChannel: %s", error_or_data_channel.error().message());
             return false;
         }
 
@@ -459,7 +459,7 @@ public:
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::SessionDescriptionInterface> session_description = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, sdp_str, &error);
         if (session_description == nullptr) {
-            LOGE("PeerDataChannelClient", "Failed to create session description: %s", error.description.c_str());
+            LOGE(name_.c_str(), "Failed to create session description: %s", error.description.c_str());
             return false;
         }
         peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create().get(), session_description.release());
@@ -471,7 +471,7 @@ public:
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::SessionDescriptionInterface> session_description = webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, sdp_str, &error);
         if (session_description == nullptr) {
-            LOGE("PeerDataChannelClient", "Failed to create session description: %s", error.description.c_str());
+            LOGE(name_.c_str(), "Failed to create session description: %s", error.description.c_str());
             return false;
         }
 
@@ -484,16 +484,16 @@ public:
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::IceCandidateInterface> ice_candidate(webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, &error));
         if (!ice_candidate.get()) {
-            LOGE("PeerDataChannelClient", "Failed to create ICE Candidate: %s", error.description.c_str());
+            LOGE(name_.c_str(), "Failed to create ICE Candidate: %s", error.description.c_str());
             err_message = error.description;
             return false;
         }
         if (!peer_connection_->AddIceCandidate(ice_candidate.get())) {
-            LOGE("PeerDataChannelClient", "Failed to add ICE candidate");
+            LOGE(name_.c_str(), "Failed to add ICE candidate");
             err_message = "Failed to add ICE candidate";
             return false;
         }
-        LOGI("PeerDataChannelClient", "Added ICE Candidate: %s", candidate.c_str());
+        LOGI(name_.c_str(), "Added ICE Candidate: %s", candidate.c_str());
         return true;
     }
 
@@ -502,13 +502,13 @@ public:
         if (!connected_) {
             return;
         }
-        LOGI("PeerDataChannelClient", "Waiting for data channel connection");
+        LOGI(name_.c_str(), "Waiting for data channel connection");
         data_channel_cond_.wait(data_channel_mutex_);
     }
 
     void send_message_sync(const std::string &message) {
         std::unique_lock<std::mutex> lock(data_channel_mutex_);
-        // LOGI("PeerDataChannelClient", "Sending message: {}", message);
+        // LOGI(name_.c_str(), "Sending message: {}", message);
         webrtc::DataBuffer buffer(rtc::CopyOnWriteBuffer(message.c_str(), message.size() + 1), true);
         data_channel_->Send(buffer);
         data_channel_cond_.wait(data_channel_mutex_);
@@ -738,10 +738,9 @@ static void *app_thread_func(void *userdata) {
     LOGI("PeerDataChannel", "Starting PeerDataChannelClient");
     // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
 
-//    auto client = std::make_shared<PeerDataChannelClient>();
     auto client = rtc::make_ref_counted<PeerDataChannelClient>();
-//
-//    rtc::InitializeSSL();
+
+    rtc::InitializeSSL();
 
     client->init_webrtc();
 
@@ -752,7 +751,7 @@ static void *app_thread_func(void *userdata) {
 
     // client->query_peer_type();
 
-//    client->wait_for_data_channel_connection();
+    client->wait_for_data_channel_connection();
     try {
         int count = 0;
         auto b = std::chrono::high_resolution_clock::now();
@@ -781,8 +780,8 @@ static void *app_thread_func(void *userdata) {
     } catch (std::exception &e) {
         LOGE("PeerDataChannel", "Terminated by Interrupt: %s ", e.what());
     }
-//
-////    rtc::CleanupSSL();
+
+    rtc::CleanupSSL();
     client->deinit_signaling();
 
     LOGI("PeerDataChannel", "Stopped.");

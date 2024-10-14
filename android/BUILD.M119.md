@@ -1,3 +1,11 @@
+## Chromium WebRTC Implementation
+### References
+* Official Development Document
+  * https://webrtc.github.io/webrtc-org/native-code/development/
+  * https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up
+* Official Branch Details
+  * https://chromiumdash.appspot.com/branches
+
 ## Base Code
 * NDK Official Samples
   * https://github.com/android/ndk-samples/tree/3a94e115ced511c9f95f505b273332d53c6b0aca/hello-libs
@@ -77,16 +85,75 @@
       visibility += [ "//services/tracing/public/cpp" ]
     }
   ```
+
+#### atomic Issue
+
+* https://github.com/flutter/flutter/issues/75348
+* https://github.com/flutter/buildroot/commit/bc399c09daea4df5ef557d274062ec01292ec906#diff-8a360dce0fe5c3b40bce86e8c3c91700626b9114bc8cfd4bc9a42089ee1ad4bfR4
+
+* Error Messages from Android Studio when building Android App like PeerDataChannelClient
+  ```
+  [3/3] Linking CXX shared library /home/wom/jylee/webrtc_samples/android/peer_datachannel_client/build/intermediates/cmake/debug/obj/arm64-v8a/libhello-libs.so
+  FAILED: /home/wom/jylee/webrtc_samples/android/peer_datachannel_client/build/intermediates/cmake/debug/obj/arm64-v8a/libhello-libs.so
+  : && /home/wom/android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android23 --gcc-toolchain=/home/wom/android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64 --sysroot=/home/wom/android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot -fPIC -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O0 -fno-limit-debug-info  -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libatomic.a -static-libstdc++ -Wl,--build-id -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments -shared -Wl,-soname,libhello-libs.so -o /home/wom/jylee/webrtc_samples/android/peer_datachannel_client/build/intermediates/cmake/debug/obj/arm64-v8a/libhello-libs.so CMakeFiles/hello-libs.dir/hello-libs.cpp.o CMakeFiles/hello-libs.dir/peer_datachannel_client.cpp.o  -landroid /home/wom/jylee/webrtc_samples/android/peer_datachannel_client/src/main/cpp/../../../../distribution/lib/arm64-v8a/libsioclient.a /home/wom/Data/webrtc_android//src/out/arm64-v8a/obj/libwebrtc.a -llog -latomic -lm && :
+  /home/wom/Data/webrtc_android//src/out/arm64-v8a/obj/libwebrtc.a(peer_connection_interface.o): In function int std::__ndk1::__cxx_atomic_fetch_sub<int>(std::__ndk1::__cxx_atomic_base_impl<int>*, int, std::__ndk1::memory_order)':
+  ./../../../../../android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/atomic:1036: undefined reference to __aarch64_ldadd4_acq_rel'
+  /home/wom/Data/webrtc_android//src/out/arm64-v8a/obj/libwebrtc.a(peer_connection_interface.o): In function int std::__ndk1::__cxx_atomic_fetch_add<int>(std::__ndk1::__cxx_atomic_base_impl<int>*, int, std::__ndk1::memory_order)':
+  ./../../../../../android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/atomic:1014: undefined reference to __aarch64_ldadd4_relax'
+  /home/wom/Data/webrtc_android//src/out/arm64-v8a/obj/libwebrtc.a(rtc_certificate.o): In function int std::__ndk1::__cxx_atomic_fetch_add<int>(std::__ndk1::__cxx_atomic_base_impl<int>*, int, std::__ndk1::memory_order)':
+  ./../../../../../android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/atomic:1014: undefined reference to __aarch64_ldadd4_relax'
+  /home/wom/Data/webrtc_android//src/out/arm64-v8a/obj/libwebrtc.a(copy_on_write_buffer.o): In function int std::__ndk1::__cxx_atomic_fetch_add<int>(std::__ndk1::__cxx_atomic_base_impl<int>*, int, std::__ndk1::memory_order)':
+  ./../../../../../android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/atomic:1014: undefined reference to __aarch64_ldadd4_relax'
+  ./../../../../../android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/atomic:1014: undefined reference to __aarch64_ldadd4_relax'
+  ./../../../../../android-sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/atomic:1014: undefined reference to __aarch64_ldadd4_relax'
+  ```
+* Solution
+  ```diff
+  src/build/config/android ((HEAD detached at bc10f9ffb))$ diff --color -u ./BUILD.gn.backup ./BUILD.gn
+  --- ./BUILD.gn.backup   2024-10-11 20:35:04.270756362 +0900
+  +++ ./BUILD.gn  2024-10-11 20:35:06.626717670 +0900
+  @@ -22,6 +22,15 @@
+      "-fno-short-enums",
+    ]
+
+  +  #
+  +  # references
+  +  #  - https://github.com/flutter/flutter/issues/75348
+  +  #  - https://github.com/flutter/buildroot/commit/bc399c09daea4df5ef557d274062ec01292ec906#diff-8a360dce0fe5c3b40bce86e8c3c91700626b9114bc8cfd4bc9a42089ee1ad4bfR426
+  +  #
+  +  if (target_cpu == "arm64") {
+  +    cflags += [ "-mno-outline-atomics" ]
+  +  }
+  +
+    defines = [
+      "ANDROID",
+
+
+  ```
 ### Build Release Version
 * `arm`
   ```
-  src ((HEAD detached at branch-heads/6045))$ gn gen out/armeabi-v7a --args='target_os="android" target_cpu="arm"'
-  Done. Made 7290 targets from 366 files in 591ms
+  src ((HEAD detached at branch-heads/6045))$ gn gen out/armeabi-v7a --args='is_debug=false use_custom_libcxx=false target_os="android" target_cpu="arm" android_ndk_version = "r21d" android_ndk_major_version=21 default_min_sdk_version=23'
+  Done. Made 7287 targets from 362 files in 890ms
+  src ((HEAD detached at branch-heads/6045))$ time ninja -C out/armeabi-v7a/ webrtc
+  ninja: Entering directory `out/armeabi-v7a/'
+  [4343/4343] AR obj/libwebrtc.a
 
-
+  real    3m30.842s
+  user    35m59.086s
+  sys     2m15.902s
   ```
 * `arm64`
   ```
+  src ((HEAD detached at branch-heads/6045))$ gn gen out/arm64-v8a --args='is_debug=false use_custom_libcxx=false target_os="android" target_cpu="arm64" android_ndk_version = "r21d" android_ndk_major_version=21 default_min_sdk_version=23 android_ndk_root="/home/wom/android-sdk/ndk/21.4.7075529"'
+  Done. Made 7287 targets from 362 files in 662ms
+  src ((HEAD detached at branch-heads/6045))$ time ninja -C out/arm64-v8a/ webrtc
+  ninja: Entering directory `out/arm64-v8a/'
+  [4310/4310] AR obj/libwebrtc.a
+
+  real    3m33.807s
+  user    36m7.673s
+  sys     2m17.012s
   ```
 * `x86`
   ```
@@ -101,7 +168,59 @@
   ```
 * `x64`
   ```
+  src ((HEAD detached at branch-heads/6045))$ gn gen out/x86_64 --args='is_debug=false use_custom_libcxx=false target_os="android" target_cpu="x64" android_ndk_version = "r21d" android_ndk_major_version=21 default_min_sdk_version=23'
+  Done. Made 7305 targets from 364 files in 660ms
+  src ((HEAD detached at branch-heads/6045))$ time ninja -C out/x86_64/ webrtc
+  ninja: Entering directory `out/x86_64/'
+  [4582/4582] AR obj/libwebrtc.a
+
+  real    3m53.798s
+  user    40m1.787s
+  sys     2m20.757s
   ```
+
+
+## Copy headers for Android (for Android Studio 4.2.2 indexing)
+```bash
+time bash ./copy_headers.M119.sh <path>/webrtc_android/src/ <path>/webrtc_android/include
+
+...
++ read -r file
+++ dirname video/frame_decode_timing.h
++ RELATIVE_DIR=video
++ mkdir -p /home/wom/Data/webrtc_android/include/video
++ cp /home/wom/Data/webrtc_android/src//video/frame_decode_timing.h /home/wom/Data/webrtc_android/include/video/
++ read -r file
++ echo 'Header files copied successfully from the selected directories.'
+Header files copied successfully from the selected directories.
+
+real	0m23.685s
+user	0m13.010s
+sys	0m10.730s
+```
+```bash
+webrtc_android$ tree include/ -d -L 1
+include/
+├── api
+├── audio
+├── base
+├── call
+├── common_audio
+├── common_video
+├── logging
+├── media
+├── modules
+├── net
+├── p2p
+├── pc
+├── rtc_base
+├── rtc_tools
+├── system_wrappers
+├── third_party
+└── video
+
+17 directories
+```
 
 ## Android Studio Settings
 ``` diff
