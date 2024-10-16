@@ -17,6 +17,7 @@ package com.stereoboy.peer_audio_client;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 /*
  * Simple Java UI to trigger jni function. It is exactly same as Java code
@@ -26,12 +27,24 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.i("PeerDataChannel", "onCreate()");
         super.onCreate(savedInstanceState);
         TextView tv = new TextView(this);
         tv.setText( stringFromJNI() );
+        initNative();
         setContentView(tv);
     }
+    @Override
+    protected void onDestroy() {
+        deinitNative();
+        super.onDestroy();
+        Log.i("PeerDataChannel", "onDestroy()");
+    }
+
     public native String  stringFromJNI();
+    public native void  initNative();
+    public native void  deinitNative();
+
     static {
         System.loadLibrary("hello-libs");
     }
