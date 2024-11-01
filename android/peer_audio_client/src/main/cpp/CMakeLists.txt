@@ -85,9 +85,13 @@ target_compile_definitions(
         GOOGLE_PROTOBUF_INTERNAL_DONATE_STEAL_INLINE=0
         HAVE_PTHREAD
 )
-
+#
+# To Link OpenSLES
+#  - https://stackoverflow.com/questions/40849737/undefined-reference-to-slcreateengine
+#
 target_link_libraries(hello-libs
-                      android
-                      lib_gmath
-                      lib_gperf
-                      log)
+        android
+        lib_sio_client
+        lib_webrtc
+        log
+        OpenSLES)

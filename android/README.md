@@ -1,4 +1,22 @@
-hello-libs
+# Current Working Version
+## socket.io-client-cpp
+* commit-id `6308d090e8b5e054ac82111cb26a77aed9d9cab2`
+## WebRTC
+* [M119](./BUILD.M119.md)
+### Backups
+* [M131](./BUILD.M131.md)
+* [M116](./BUILD.M116.md)
+* [M115](./BUILD.M115.md)
+
+-------------
+# Base Code
+* NDK Official Samples
+  * https://github.com/android/ndk-samples/tree/3a94e115ced511c9f95f505b273332d53c6b0aca/hello-libs
+  * commit-id `3a94e115ced511c9f95f505b273332d53c6b0aca`
+
+
+
+hello-libs (Base Code)
 =========
 hello-libs is a sample that shows you how to manage 3rd party C/C++ libraries with Android Studio.
 
@@ -17,7 +35,7 @@ The sample includes 2 modules:
 
 The main goal of the sample is to demo how to use 3rd party libs, it is not to demonstrate lib package generation. Toward that goal, the pre-built libs are included in the `distribution` folder.
 
-When importing libraries into your app, include the following in your app's `CMakeLists.txt` file (in the following order): 
+When importing libraries into your app, include the following in your app's `CMakeLists.txt` file (in the following order):
 
 *    import libraries as static or shared(using `add_library`)
 *    configure each library binary location(using `set_target_properties`)
@@ -73,4 +91,4 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 License for the specific language governing permissions and limitations under
 the License.
 
- 
+

@@ -39,7 +39,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         super.onCreate(savedInstanceState);
         TextView tv = new TextView(this);
         tv.setText( stringFromJNI() );
-        initNative();
 
         //
         // old version permission request
@@ -53,6 +52,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD);
         }
 
+        initNative(getApplicationContext());
         setContentView(tv);
     }
     @Override
@@ -65,7 +65,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
 
     public native String  stringFromJNI();
-    public native void  initNative();
 
     //
     // old version permission request
@@ -87,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         }
     }
 
+    public native void  initNative(Context applicationContext);
     public native void  deinitNative();
 
     static {

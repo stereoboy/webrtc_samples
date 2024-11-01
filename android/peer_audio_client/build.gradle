@@ -8,13 +8,59 @@ if (localPropertiesFile.exists()) {
 }
 
 def webrtcDir = localProperties.getProperty("webrtc.dir")
+def webrtcJavaDir = localProperties.getProperty("webrtc.java.dir")
 
 android {
     compileSdkVersion 29
     ndkVersion "21.4.7075529"
+//    ndkVersion "23.1.7779620"
     defaultConfig {
         applicationId = 'com.stereoboy.peer_audio_client'
+        //-------------------------------------------------------------------------------------------------
+        // Related Issues
+        //  (1) references
+        //       - https://docs.oracle.com/javase/tutorial/java/IandI/defaultmethods.html
+        //       - https://developer.android.com/studio/write/java8-support
+        // > Task :peer_audio_client:mergeExtDexDebug FAILED
+        //AGPBI: {"kind":"error","text":"Static interface methods are only supported starting with Android N (--min-api 24): org.webrtc.VideoFrame$TextureBuffer org.webrtc.CameraSession.createTextureBufferWithModifiedTransformMatrix(org.webrtc.TextureBufferImpl, boolean, int)","sources":[{}],"tool":"D8"}
+        //
+        //Static interface methods are only supported starting with Android N (--min-api 24): org.webrtc.VideoFrame$TextureBuffer org.webrtc.CameraSession.createTextureBufferWithModifiedTransformMatrix(org.webrtc.TextureBufferImpl, boolean, int)
+        //
+        //Execution failed for task ':peer_audio_client:mergeExtDexDebug'.
+        //> Could not resolve all files for configuration ':peer_audio_client:debugRuntimeClasspath'.
+        //   > Failed to transform file 'libwebrtc.jar' to match attributes {artifactType=android-dex, dexing-enable-desugaring=false, dexing-is-debuggable=true, dexing-min-sdk=23, org.gradle.usage=java-runtime-jars}
+        //      > Execution failed for DexingNoClasspathTransform: /home/wom/Data/webrtc_android/src/out/arm64-v8a_debug/lib.java/sdk/android/libwebrtc.jar.
+        //         > Error while dexing.
+        //
+        //  (2)
+        // > Task :peer_audio_client:mergeExtDexDebug FAILED
+        //AGPBI: {"kind":"error","text":"Invoke-customs are only supported starting with Android O (--min-api 26)","sources":[{}],"tool":"D8"}
+        //Invoke-customs are only supported starting with Android O (--min-api 26)
+        //
+        //
+        //Execution failed for task ':peer_audio_client:mergeExtDexDebug'.
+        //> Could not resolve all files for configuration ':peer_audio_client:debugRuntimeClasspath'.
+        //   > Failed to transform file 'libwebrtc.jar' to match attributes {artifactType=android-dex, dexing-enable-desugaring=false, dexing-is-debuggable=true, dexing-min-sdk=24, org.gradle.usage=java-runtime-jars}
+        //      > Execution failed for DexingNoClasspathTransform: /home/wom/Data/webrtc_android/src/out/arm64-v8a_debug/lib.java/sdk/android/libwebrtc.jar.
+        //         > Error while dexing.
+        //           The dependency contains Java 8 bytecode. Please enable desugaring by adding the following to build.gradle
+        //           android {
+        //               compileOptions {
+        //                   sourceCompatibility 1.8
+        //                   targetCompatibility 1.8
+        //               }
+        //           }
+        //
+        //
+        // By adding the following lines, all issues are resolved.
+        //           android {
+        //               compileOptions {
+        //                   sourceCompatibility 1.8
+        //                   targetCompatibility 1.8
+        //               }
+        //           }
         minSdkVersion 23
+        //-------------------------------------------------------------------------------------------------
         targetSdkVersion 28
         versionCode = 1
         versionName = '1.0'
@@ -49,6 +95,18 @@ android {
             path 'src/main/cpp/CMakeLists.txt'
         }
     }
+
+    //
+    // to fix java error "java.lang.NoSuchMethodError: No static method metafactory"
+    // references
+    //  - https://developer.android.com/studio/write/java8-support
+    //  - https://github.com/square/retrofit/issues/3280
+    //  - https://stackoverflow.com/questions/67749283/java-lang-nosuchmethoderror-no-static-method-metafactory
+    //
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
@@ -57,4 +115,8 @@ dependencies {
     // and also uncommented out the one in settings.gradle
     // after lib is generated, just comment them out again
     api project(':gen-libs')
+//    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'], exclude: [])
+    implementation fileTree(dir: webrtcJavaDir.toString() + "lib.java/sdk/android/", include: ['libwebrtc.jar'], exclude: [])
+//    implementation fileTree(dir: webrtcJavaDir.toString() + "/rtc_base", include: ['base_java.jar'], exclude: [])
+//    implementation files('libs/foo.jar')
 }

@@ -21,6 +21,15 @@
 #include "logging.h"
 #include "peer_client.h"
 
+#include <modules/utility/include/jvm_android.h>
+#include <sdk/android/native_api/base/init.h>
+
+#include <sdk/android/native_api/audio_device_module/audio_device_android.h>
+#include <sdk/android/native_api/jni/java_types.h>
+#include <sdk/android/native_api/jni/jvm.h>
+#include <sdk/android/native_api/jni/scoped_java_ref.h>
+
+
 #include <api/media_stream_interface.h>
 #include <api/peer_connection_interface.h>
 
@@ -378,7 +387,7 @@ public:
         LOGI(name_.c_str(), "<<< query-peer-type");
     }
 
-    bool init_webrtc(void) {
+    bool init_webrtc(JNIEnv* env, jobject application_context) {
         webrtc::PeerConnectionInterface::IceServer ice_server;
         ice_server.uri = "stun:stun.l.google.com:19302";
         configuration_.servers.push_back(ice_server);
@@ -400,6 +409,13 @@ public:
             signaling_thread_ = rtc::Thread::CreateWithSocketServer();
             signaling_thread_->Start();
         }
+
+        //
+        // references
+        //  - https://groups.google.com/g/discuss-webrtc/c/O_Mbam2GVHU
+        //
+        audio_device_module_ = webrtc::CreateJavaAudioDeviceModule(env, application_context);
+
         peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
                 nullptr /* network_thread */, nullptr /* worker_thread */,
                 signaling_thread_.get(), audio_device_module_ /* default_adm */,
@@ -492,6 +508,7 @@ static jfieldID custom_data_field_id;
 static void *app_thread_func(void *userdata);
 struct NativeData {
 //    std::shared_ptr<PeerDataChannelClient> client = nullptr;
+    rtc::scoped_refptr<PeerAudioClient> client;
     pthread_t           app_thread;
     std::atomic_bool    system_on = {false};
 };
@@ -499,8 +516,8 @@ struct NativeData {
 static std::unique_ptr<NativeData> data = nullptr;
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_stereoboy_peer_1audio_1client_MainActivity_initNative(JNIEnv *env, jobject thiz) {
-LOGI("PeerDataChannel", "%s", __PRETTY_FUNCTION__ );
+Java_com_stereoboy_peer_1audio_1client_MainActivity_initNative(JNIEnv *env, jobject thiz, jobject application_context) {
+LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
 #if 0
 //    auto logger = spdlog::stdout_color_mt("PeerDataChannel");
 //    absl::SetProgramUsageMessage(
@@ -576,16 +593,39 @@ LOGI("PeerDataChannel", "%s", __PRETTY_FUNCTION__ );
     env->SetLongField (thiz, custom_data_field_id, (jlong)data);
 #endif
 #else
-data = std::make_unique<NativeData>();
-pthread_create(&data->app_thread, nullptr, app_thread_func, nullptr);
-data->system_on = true;
+    data = std::make_unique<NativeData>();
+
+    //JNIEnv *env = (JNIEnv *)userdata;
+    JavaVM * jvm = nullptr;
+    env->GetJavaVM(&jvm);
+
+    webrtc::InitAndroid(jvm);
+    webrtc::JVM::Initialize(jvm);
+
+    LOGI("PeerAudio", "Starting PeerAudioClient");
+    // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
+
+    data->client = rtc::make_ref_counted<PeerAudioClient>();
+
+    rtc::InitializeSSL();
+
+//    const webrtc::JavaParamRef<jobject> java_application_context(application_context);
+    data->client->init_webrtc(env, application_context);
+
+    data->client->init_signaling();
+
+    LOGI("PeerAudio", "Connecting to %s:%d", SERVER_HOSTNAME, SERVER_PORT);
+    data->client->connect_sync(SERVER_HOSTNAME, SERVER_PORT);
+
+    //pthread_create(&data->app_thread, nullptr, app_thread_func, nullptr);
+    data->system_on = true;
 #endif
 return;
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1audio_1client_MainActivity_deinitNative(JNIEnv *env, jobject thiz) {
-LOGI("PeerDataChannel", "%s", __PRETTY_FUNCTION__ );
+LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
 #if 0
 #if 0
     struct NativeData *data = (struct NativeData *)env->GetLongField (thiz, custom_data_field_id);
@@ -631,11 +671,26 @@ LOGI("PeerDataChannel", "%s", __PRETTY_FUNCTION__ );
 #endif
     LOGI("PeerDataChannel", "Stopped.");
 #else
-data->system_on = false;
+    data->system_on = false;
+
+    rtc::CleanupSSL();
+    data->client->deinit_signaling();
+
+    data->client = nullptr;
 #endif
 return;
 }
 
+//extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
+//    LOGI("PeerAudio", "JNI_OnLoad()");
+//    return JNI_VERSION_1_6;
+//}
+//
+//extern "C" void JNIEXPORT JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved) {
+//    LOGI("PeerAudio", "JNI_OnUnLoad()");
+//}
+
+#if 0
 static void *app_thread_func(void *userdata) {
 
 //    auto logger = spdlog::stdout_color_mt("PeerAudio");
@@ -682,3 +737,4 @@ static void *app_thread_func(void *userdata) {
     LOGI("PeerAudio", "Stopped.");
     return nullptr;
 }
+#endif
