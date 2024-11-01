@@ -1,4 +1,4 @@
-include ':app'
+//include ':app'
 include ':peer_datachannel_client'
 include ':peer_audio_client'
 include ':peer_video_client'
