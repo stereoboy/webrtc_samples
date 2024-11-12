@@ -504,208 +504,93 @@ public:
     }
 };
 
-static jfieldID custom_data_field_id;
 static void *app_thread_func(void *userdata);
-struct NativeData {
-//    std::shared_ptr<PeerDataChannelClient> client = nullptr;
-    rtc::scoped_refptr<PeerAudioClient> client;
+struct AppContext {
+    JavaVM              *jvm;
+    jobject             application_context = nullptr;
     pthread_t           app_thread;
     std::atomic_bool    system_on = {false};
 };
 
-static std::unique_ptr<NativeData> data = nullptr;
+static AppContext g_ctx;
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1audio_1client_MainActivity_initNative(JNIEnv *env, jobject thiz, jobject application_context) {
-LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
-#if 0
-//    auto logger = spdlog::stdout_color_mt("PeerDataChannel");
-//    absl::SetProgramUsageMessage(
-//            "Example usage: ./peer_datachanenl_client --server=localhost --port=5000\n");
-//    absl::ParseCommandLine(argc, argv);
+    LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
 
-    LOGI("PeerDataChannel", "Starting PeerDataChannelClient");
-    // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
+    g_ctx.system_on = true;
+    g_ctx.application_context = env->NewGlobalRef(application_context);
 
-    auto client = std::make_shared<PeerDataChannelClient>();
-//    auto client = rtc::make_ref_counted<PeerDataChannelClient>();
-//
-//    rtc::InitializeSSL();
+    pthread_create(&g_ctx.app_thread, nullptr, app_thread_func, nullptr);
 
-    client->init_webrtc();
-
-    client->init_signaling();
-
-    LOGI("PeerDataChannel", "Connecting to %s:%d", SERVER_HOSTNAME, SERVER_PORT);
-    client->connect_sync(SERVER_HOSTNAME, SERVER_PORT);
-
-    // client->query_peer_type();
-
-//    client->wait_for_data_channel_connection();
-//    try {
-//        int count = 0;
-//        auto b = std::chrono::high_resolution_clock::now();
-//        while(client->is_connected()) {
-//            // for (int i = 0; i < 10; i++) {
-//            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//            if (client->getType() == PeerClient::PeerType::Caller) {
-//                std::string message = "hello world";
-//                client->send_message_sync(message);
-//                // client->wait_for_message();
-//
-//                auto e = std::chrono::high_resolution_clock::now();
-//                double elapsed = std::chrono::duration<double, std::milli>(e - b).count();
-//                count++;
-//                if (elapsed > 10000) {
-//                    const float hz = count*1000/elapsed;
-//                    LOGI("PeerDataChannel", "Sent {} messages in {} ms ({} Hz)", count, elapsed, hz);
-//                    count = 0;
-//                    b = std::chrono::high_resolution_clock::now();
-//                }
-//            } else {
-//                LOGI("PeerDataChannel", "Callee main thread is doing nothing.");
-//                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//            }
-//        }
-//    } catch (std::exception &e) {
-//        LOGE("PeerDataChannel", "Terminated by Interrupt: {} ", e.what());
-//    }
-//
-////    rtc::CleanupSSL();
-//    client->deinit_signaling();
-//
-//    LOGI("PeerDataChannel", "Stopped.");
-
-
-#if 0 // FIXME: shared_ptr in memory allocated by std::malloc is not working well
-    struct NativeData *data = (struct NativeData *)std::malloc(sizeof(struct NativeData));
-    if (!data) {
-        LOGE("PeerDataChannel", "failed to call std::malloc(sizeof(struct NativeData))");
-        return;
-    }
-#else
-    data = std::make_unique<NativeData>();
-#endif
-    data->client = client;
-#if 0
-    jclass klass = env->GetObjectClass(thiz);
-    custom_data_field_id = env->GetFieldID (klass, "nativeData", "J");
-    env->SetLongField (thiz, custom_data_field_id, (jlong)data);
-#endif
-#else
-    data = std::make_unique<NativeData>();
-
-    //JNIEnv *env = (JNIEnv *)userdata;
-    JavaVM * jvm = nullptr;
-    env->GetJavaVM(&jvm);
-
-    webrtc::InitAndroid(jvm);
-    webrtc::JVM::Initialize(jvm);
-
-    LOGI("PeerAudio", "Starting PeerAudioClient");
-    // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
-
-    data->client = rtc::make_ref_counted<PeerAudioClient>();
-
-    rtc::InitializeSSL();
-
-//    const webrtc::JavaParamRef<jobject> java_application_context(application_context);
-    data->client->init_webrtc(env, application_context);
-
-    data->client->init_signaling();
-
-    LOGI("PeerAudio", "Connecting to %s:%d", SERVER_HOSTNAME, SERVER_PORT);
-    data->client->connect_sync(SERVER_HOSTNAME, SERVER_PORT);
-
-    //pthread_create(&data->app_thread, nullptr, app_thread_func, nullptr);
-    data->system_on = true;
-#endif
-return;
+    return;
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1audio_1client_MainActivity_deinitNative(JNIEnv *env, jobject thiz) {
-LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
-#if 0
-#if 0
-    struct NativeData *data = (struct NativeData *)env->GetLongField (thiz, custom_data_field_id);
-#endif
-    auto client = data->client;
-//    try {
-//        int count = 0;
-//        auto b = std::chrono::high_resolution_clock::now();
-//        while(client->is_connected()) {
-//            // for (int i = 0; i < 10; i++) {
-//            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//            if (client->getType() == PeerClient::PeerType::Caller) {
-//                std::string message = "hello world";
-//                client->send_message_sync(message);
-//                // client->wait_for_message();
-//
-//                auto e = std::chrono::high_resolution_clock::now();
-//                double elapsed = std::chrono::duration<double, std::milli>(e - b).count();
-//                count++;
-//                if (elapsed > 10000) {
-//                    const float hz = count*1000/elapsed;
-//                    LOGI("PeerDataChannel", "Sent {} messages in {} ms ({} Hz)", count, elapsed, hz);
-//                    count = 0;
-//                    b = std::chrono::high_resolution_clock::now();
-//                }
-//            } else {
-//                LOGI("PeerDataChannel", "Callee main thread is doing nothing.");
-//                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//            }
-//        }
-//    } catch (std::exception &e) {
-//        LOGE("PeerDataChannel", "Terminated by Interrupt: {} ", e.what());
-//    }
-//
-//    rtc::CleanupSSL();
+    LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
+    g_ctx.system_on = false;
+    void *ret;
+    pthread_join(g_ctx.app_thread, &ret);
 
-    client->deinit_signaling();
-    data->client = nullptr;
-    client = nullptr;
-#if 0 // FIXME: shared_ptr in memory allocated by std::malloc is not working well
-    std::free(data);
-    env->SetLongField (thiz, custom_data_field_id, (jlong) nullptr);
-#endif
-    LOGI("PeerDataChannel", "Stopped.");
-#else
-    data->system_on = false;
+    LOGI("PeerAudio", "PeerAudio Stopped with ret = %d", *(int *)ret);
 
-    rtc::CleanupSSL();
-    data->client->deinit_signaling();
-
-    data->client = nullptr;
-#endif
-return;
+    env->DeleteGlobalRef(g_ctx.application_context);
+    g_ctx.application_context = nullptr;
+    return;
 }
 
-//extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
-//    LOGI("PeerAudio", "JNI_OnLoad()");
-//    return JNI_VERSION_1_6;
-//}
-//
-//extern "C" void JNIEXPORT JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved) {
-//    LOGI("PeerAudio", "JNI_OnUnLoad()");
-//}
+extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
+    LOGI("PeerAudio", "JNI_OnLoad()");
+    webrtc::InitAndroid(jvm);
+    LOGI("PeerAudio", "webrtc::InitAndroid() completed");
+    webrtc::JVM::Initialize(jvm);
+    LOGI("PeerAudio", "webrtc::JVM::Initialize() completed");
+    g_ctx.jvm = jvm;
+    return JNI_VERSION_1_6;
+}
 
-#if 0
+extern "C" void JNIEXPORT JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved) {
+    LOGI("PeerAudio", "JNI_OnUnLoad()");
+}
+
+
 static void *app_thread_func(void *userdata) {
-
-//    auto logger = spdlog::stdout_color_mt("PeerAudio");
-//    absl::SetProgramUsageMessage(
-//            "Example usage: ./peer_audio_client --server=localhost --port=5000\n");
-//    absl::ParseCommandLine(argc, argv);
-
+    int ret = 0;
     LOGI("PeerAudio", "Starting PeerAudioClient");
-    // asio::ssl::context *ssl_ctx = new asio::ssl::context(asio::ssl::context::tls);
+
+    JNIEnv * env;
+    // double check it's all ok
+    int getEnvStat = g_ctx.jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    if (getEnvStat == JNI_EDETACHED) {
+        LOGI("PeerAudio", "GetEnv: not attached.");
+        if (g_ctx.jvm->AttachCurrentThread(&env, nullptr) != 0) {
+            LOGE("PeerAudio", "Failed to attach env to Current Thread");
+            ret = -1;
+            pthread_exit(&ret);
+        } else {
+            LOGI("PeerAudio", "JNIEnv attached to Current Thread");
+        }
+    } else if (getEnvStat == JNI_OK) {
+        LOGI("PeerAudio", "JNIEnv already attached to Current Thread");
+    } else if (getEnvStat == JNI_EVERSION) {
+        LOGE("PeerAudio", "GetEnv: version not supported");
+        ret = -1;
+        pthread_exit(&ret);
+    }
+
+//    webrtc::InitAndroid(g_ctx.jvm);
+//    LOGI("PeerAudio", "webrtc::InitAndroid() completed");
+//    webrtc::JVM::Initialize(g_ctx.jvm);
+//    LOGI("PeerAudio", "webrtc::JVM::Initialize() completed");
+
+
 
     auto client = rtc::make_ref_counted<PeerAudioClient>();
 
     rtc::InitializeSSL();
 
-    client->init_webrtc();
+    client->init_webrtc(env, g_ctx.application_context);
 
     client->init_signaling();
 
@@ -716,7 +601,7 @@ static void *app_thread_func(void *userdata) {
     try {
         int count = 0;
         auto b = std::chrono::high_resolution_clock::now();
-        while(client->is_connected()) {
+        while(g_ctx.system_on && client->is_connected()) {
             // for (int i = 0; i < 10; i++) {
             // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             if (client->getType() == PeerClient::PeerType::Caller) {
@@ -729,12 +614,12 @@ static void *app_thread_func(void *userdata) {
         }
     } catch (std::exception &e) {
         LOGE("PeerAudio", "Terminated by Interrupt: {} ", e.what());
+        ret = -1;
     }
 
     rtc::CleanupSSL();
     client->deinit_signaling();
 
     LOGI("PeerAudio", "Stopped.");
-    return nullptr;
+    pthread_exit(&ret);
 }
-#endif
