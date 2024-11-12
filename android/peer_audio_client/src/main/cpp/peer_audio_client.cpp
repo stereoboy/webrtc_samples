@@ -57,6 +57,8 @@
 #include "logging.h"
 #include "peer_client.h"
 
+#define TAG             "PeerAudio"
+
 #define SERVER_HOSTNAME "192.168.0.2"
 #define SERVER_PORT     5000
 
@@ -516,24 +518,23 @@ static AppContext g_ctx;
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1audio_1client_MainActivity_initNative(JNIEnv *env, jobject thiz, jobject application_context) {
-    LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
+    LOGI(TAG, "%s", __PRETTY_FUNCTION__ );
 
     g_ctx.system_on = true;
     g_ctx.application_context = env->NewGlobalRef(application_context);
 
     pthread_create(&g_ctx.app_thread, nullptr, app_thread_func, nullptr);
-
     return;
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_stereoboy_peer_1audio_1client_MainActivity_deinitNative(JNIEnv *env, jobject thiz) {
-    LOGI("PeerAudio", "%s", __PRETTY_FUNCTION__ );
+    LOGI(TAG, "%s", __PRETTY_FUNCTION__ );
     g_ctx.system_on = false;
     void *ret;
     pthread_join(g_ctx.app_thread, &ret);
 
-    LOGI("PeerAudio", "PeerAudio Stopped with ret = %d", *(int *)ret);
+    LOGI(TAG, "PeerAudio Stopped with ret = %d", *(int *)ret);
 
     env->DeleteGlobalRef(g_ctx.application_context);
     g_ctx.application_context = nullptr;
@@ -541,48 +542,48 @@ Java_com_stereoboy_peer_1audio_1client_MainActivity_deinitNative(JNIEnv *env, jo
 }
 
 extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
-    LOGI("PeerAudio", "JNI_OnLoad()");
+    LOGI(TAG, "JNI_OnLoad()");
     webrtc::InitAndroid(jvm);
-    LOGI("PeerAudio", "webrtc::InitAndroid() completed");
+    LOGI(TAG, "webrtc::InitAndroid() completed");
     webrtc::JVM::Initialize(jvm);
-    LOGI("PeerAudio", "webrtc::JVM::Initialize() completed");
+    LOGI(TAG, "webrtc::JVM::Initialize() completed");
     g_ctx.jvm = jvm;
     return JNI_VERSION_1_6;
 }
 
 extern "C" void JNIEXPORT JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved) {
-    LOGI("PeerAudio", "JNI_OnUnLoad()");
+    LOGI(TAG, "JNI_OnUnLoad()");
 }
 
 
 static void *app_thread_func(void *userdata) {
     int ret = 0;
-    LOGI("PeerAudio", "Starting PeerAudioClient");
+    LOGI(TAG, "Starting PeerAudioClient");
 
     JNIEnv * env;
     // double check it's all ok
     int getEnvStat = g_ctx.jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED) {
-        LOGI("PeerAudio", "GetEnv: not attached.");
+        LOGI(TAG, "GetEnv: not attached.");
         if (g_ctx.jvm->AttachCurrentThread(&env, nullptr) != 0) {
-            LOGE("PeerAudio", "Failed to attach env to Current Thread");
+            LOGE(TAG, "Failed to attach env to Current Thread");
             ret = -1;
             pthread_exit(&ret);
         } else {
-            LOGI("PeerAudio", "JNIEnv attached to Current Thread");
+            LOGI(TAG, "JNIEnv attached to Current Thread");
         }
     } else if (getEnvStat == JNI_OK) {
-        LOGI("PeerAudio", "JNIEnv already attached to Current Thread");
+        LOGI(TAG, "JNIEnv already attached to Current Thread");
     } else if (getEnvStat == JNI_EVERSION) {
-        LOGE("PeerAudio", "GetEnv: version not supported");
+        LOGE(TAG, "GetEnv: version not supported");
         ret = -1;
         pthread_exit(&ret);
     }
 
 //    webrtc::InitAndroid(g_ctx.jvm);
-//    LOGI("PeerAudio", "webrtc::InitAndroid() completed");
+//    LOGI(TAG, "webrtc::InitAndroid() completed");
 //    webrtc::JVM::Initialize(g_ctx.jvm);
-//    LOGI("PeerAudio", "webrtc::JVM::Initialize() completed");
+//    LOGI(TAG, "webrtc::JVM::Initialize() completed");
 
 
 
@@ -594,7 +595,7 @@ static void *app_thread_func(void *userdata) {
 
     client->init_signaling();
 
-    LOGI("PeerAudio", "Connecting to %s:%d", SERVER_HOSTNAME, SERVER_PORT);
+    LOGI(TAG, "Connecting to %s:%d", SERVER_HOSTNAME, SERVER_PORT);
     client->connect_sync(SERVER_HOSTNAME, SERVER_PORT);
 
     // client->query_peer_type();
@@ -605,21 +606,21 @@ static void *app_thread_func(void *userdata) {
             // for (int i = 0; i < 10; i++) {
             // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             if (client->getType() == PeerClient::PeerType::Caller) {
-                LOGI("PeerAudio", "Callee main thread is doing nothing.");
+                LOGI(TAG, "Callee main thread is doing nothing.");
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             } else {
-                LOGI("PeerAudio", "Callee main thread is doing nothing.");
+                LOGI(TAG, "Callee main thread is doing nothing.");
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             }
         }
     } catch (std::exception &e) {
-        LOGE("PeerAudio", "Terminated by Interrupt: {} ", e.what());
+        LOGE(TAG, "Terminated by Interrupt: {} ", e.what());
         ret = -1;
     }
 
     rtc::CleanupSSL();
     client->deinit_signaling();
 
-    LOGI("PeerAudio", "Stopped.");
+    LOGI(TAG, "Stopped.");
     pthread_exit(&ret);
 }
