@@ -543,6 +543,12 @@ Java_com_stereoboy_peer_1audio_1client_MainActivity_deinitNative(JNIEnv *env, jo
 
 extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
     LOGI(TAG, "JNI_OnLoad()");
+
+    //
+    // These functions should be called here.
+    // if webrtc::InitAndroid(jvm) is called from somewhere else, the following exception occurs
+    //  - JNI DETECTED ERROR IN APPLICATION: JNI NewGlobalRef called with pending exception java.lang.ClassNotFoundException:
+    //
     webrtc::InitAndroid(jvm);
     LOGI(TAG, "webrtc::InitAndroid() completed");
     webrtc::JVM::Initialize(jvm);
@@ -560,6 +566,10 @@ static void *app_thread_func(void *userdata) {
     int ret = 0;
     LOGI(TAG, "Starting PeerAudioClient");
 
+    //
+    // references
+    //  - https://stackoverflow.com/questions/12900695/how-to-obtain-jni-interface-pointer-jnienv-for-asynchronous-calls
+    //
     JNIEnv * env;
     // double check it's all ok
     int getEnvStat = g_ctx.jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
@@ -579,13 +589,6 @@ static void *app_thread_func(void *userdata) {
         ret = -1;
         pthread_exit(&ret);
     }
-
-//    webrtc::InitAndroid(g_ctx.jvm);
-//    LOGI(TAG, "webrtc::InitAndroid() completed");
-//    webrtc::JVM::Initialize(g_ctx.jvm);
-//    LOGI(TAG, "webrtc::JVM::Initialize() completed");
-
-
 
     auto client = rtc::make_ref_counted<PeerAudioClient>();
 
