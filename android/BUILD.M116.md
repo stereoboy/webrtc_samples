@@ -95,3 +95,17 @@
     } else if (is_android) {
 
   ```
+
+  ### Build Debug Version
+* `arm64`
+  ```
+  src ((HEAD detached at branch-heads/6045))$ gn gen out/arm64-v8a_debug --args='use_custom_libcxx=false target_os="android" target_cpu="arm64" android_ndk_version = "r21d" android_ndk_major_version=21 default_min_sdk_version=23 android_ndk_root="/home/wom/android-sdk/ndk/21.4.7075529"'
+  Done. Made 7287 targets from 362 files in 631ms
+  src ((HEAD detached at branch-heads/5790))$ time ninja -C out/arm64-v8a_debug/ webrtc
+  ninja: Entering directory `out/arm64-v8a_debug/'
+  [4191/4191] AR obj/libwebrtc.a
+
+  real    3m15.234s
+  user    32m3.908s
+  sys     2m7.606s
+  ```

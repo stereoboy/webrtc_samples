@@ -41,7 +41,8 @@
   real    16m16.835s
   user    32m22.748s
   sys     3m13.018s
-
+  ```
+  ```
   cd src
   git checkout branch-heads/6045
   src ((HEAD detached at branch-heads/6045))$ time gclient sync -D

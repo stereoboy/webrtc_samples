@@ -9,14 +9,13 @@
 * [M115](./BUILD.M115.md)
 
 -------------
-# Base Code
+# Base Code (hello-libs)
 * NDK Official Samples
   * https://github.com/android/ndk-samples/tree/3a94e115ced511c9f95f505b273332d53c6b0aca/hello-libs
   * commit-id `3a94e115ced511c9f95f505b273332d53c6b0aca`
 
 
-
-hello-libs (Base Code)
+hello-libs
 =========
 hello-libs is a sample that shows you how to manage 3rd party C/C++ libraries with Android Studio.
 
