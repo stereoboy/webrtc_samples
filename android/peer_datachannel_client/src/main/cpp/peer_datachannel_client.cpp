@@ -724,8 +724,19 @@ Java_com_stereoboy_peer_1datachannel_1client_MainActivity_deinitNative(JNIEnv *e
     LOGI("PeerDataChannel", "Stopped.");
 #else
     data->system_on = false;
+    void *ret = 0;
+    pthread_join(data->app_thread, &ret);
 #endif
     return;
+}
+
+extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
+    LOGI("PeerDataChannel", "JNI_OnLoad()");
+    return JNI_VERSION_1_6;
+}
+
+extern "C" void JNIEXPORT JNICALL JNI_OnUnLoad(JavaVM* jvm, void* reserved) {
+    LOGI("PeerDataChannel", "JNI_OnUnLoad()");
 }
 
 static void *app_thread_func(void *userdata) {
