@@ -144,8 +144,12 @@
       "ANDROID",
   ```
 
-#### `java.lang.IllegalAccessError:` Inner Class Method acceess to Outer Class Private field failed
-  * Issue
+#### ~~`java.lang.IllegalAccessError:` Inner Class Method acceess to Outer Class Private field failed~~
+  * Resolved by upgrading AGP/Gradle to 7.0.1/7.0.2
+<details close>
+  <summary> show me </summary>
+
+  * Issue: Log Message on Android Studio Logcat
   ```
         --------- beginning of crash
   2024-10-28 17:04:29.776 31908-31961/com.stereoboy.peer_audio_client E/AndroidRuntime: FATAL EXCEPTION: WebRtcVolumeLevelLoggerThread
@@ -348,6 +352,8 @@
         if (audioState == WebRtcAudioTrack.AUDIO_TRACK_START) {
   ~
   ```
+</details>
+
 ### Build Release Version
 * `arm`
   ```
