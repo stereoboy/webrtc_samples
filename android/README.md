@@ -1,4 +1,19 @@
 # Current Working Version
+## Settings
+| Name                  | Version |
+| ---                   | --- |
+| Android Studio        | Android Studio Chipmunk (2021.2.1 Patch 2) |
+| Android Gradle Plugin | 7.0.1 |
+| Gradle                | 7.0.2 |
+| NDK                   | 21.4.7075529 (**MUST**) |
+
+| Name              | Version    |
+| ---               | ---        |
+| compileSdkVersion | 32         |
+| buildToolsVersion | ~~28.0.3~~ |
+| minSdkVersion     | 29         |
+| targetSdkVersion  | 32         |
+
 ## socket.io-client-cpp
 * commit-id `6308d090e8b5e054ac82111cb26a77aed9d9cab2`
 ## WebRTC
