@@ -18,7 +18,12 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 set(webrtc_include_DIR ${WEBRTC_DIR}/include)
-set(webrtc_out_DIR ${WEBRTC_DIR}/src/out/${ANDROID_ABI})
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(webrtc_out_DIR ${WEBRTC_DIR}/src/out/${ANDROID_ABI}_debug)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(webrtc_out_DIR ${WEBRTC_DIR}/src/out/${ANDROID_ABI})
+endif()
 add_library(lib_webrtc STATIC IMPORTED)
 set_target_properties(lib_webrtc PROPERTIES IMPORTED_LOCATION
         ${webrtc_out_DIR}/obj/libwebrtc.a)
@@ -49,11 +54,43 @@ target_include_directories(hello-libs PRIVATE
         ${webrtc_include_DIR}
         ${webrtc_include_DIR}/third_party/abseil-cpp
         )
-
-target_compile_definitions(
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(
         hello-libs PUBLIC
+        __DEBUG__
+        __STDC_CONSTANT_MACROS
+        __STDC_FORMAT_MACROS
+        _GNU_SOURCE
+        ANDROID
+        HAVE_SYS_UIO_H
+        ANDROID_NDK_VERSION_ROLL=r25c_1
+        CR_CLANG_REVISION=\"llvmorg-18-init-4631-gd50b56d1-1\"
+        _DEBUG
+        DYNAMIC_ANNOTATIONS_ENABLED=1
+        WEBRTC_ENABLE_PROTOBUF=1
+        WEBRTC_STRICT_FIELD_TRIALS=0
+        WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE
+        RTC_ENABLE_VP9
+        RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY
+        WEBRTC_HAVE_SCTP
+        WEBRTC_ENABLE_LIBEVENT
+        WEBRTC_ARCH_ARM64
+        WEBRTC_HAS_NEON
+        WEBRTC_LIBRARY_IMPL
+        WEBRTC_ENABLE_AVX2
+        WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1
         WEBRTC_POSIX
         WEBRTC_LINUX
+        WEBRTC_ANDROID
+        ABSL_ALLOCATOR_NOTHROW=1
+        GOOGLE_PROTOBUF_NO_RTTI
+        GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+        GOOGLE_PROTOBUF_INTERNAL_DONATE_STEAL_INLINE=0
+        HAVE_PTHREAD
+    )
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_definitions(
+        hello-libs PUBLIC
         __STDC_CONSTANT_MACROS
         __STDC_FORMAT_MACROS
         _FORTIFY_SOURCE=2
@@ -72,6 +109,8 @@ target_compile_definitions(
         RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY
         WEBRTC_HAVE_SCTP
         WEBRTC_ENABLE_LIBEVENT
+        WEBRTC_ARCH_ARM64
+        WEBRTC_HAS_NEON
         WEBRTC_LIBRARY_IMPL
         WEBRTC_ENABLE_AVX2
         WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1
@@ -79,12 +118,14 @@ target_compile_definitions(
         WEBRTC_LINUX
         WEBRTC_ANDROID
         ABSL_ALLOCATOR_NOTHROW=1
-        LIBYUV_DISABLE_NEON
+        #        LIBYUV_DISABLE_NEON
         GOOGLE_PROTOBUF_NO_RTTI
         GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
         GOOGLE_PROTOBUF_INTERNAL_DONATE_STEAL_INLINE=0
         HAVE_PTHREAD
-)
+    )
+endif()
+
 #
 # To Link OpenSLES
 #  - https://stackoverflow.com/questions/40849737/undefined-reference-to-slcreateengine
