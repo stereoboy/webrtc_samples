@@ -31,5 +31,9 @@
  */
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_stereoboy_peer_1audio_1client_MainActivity_stringFromJNI(JNIEnv *env, jobject thiz) {
-    return env->NewStringUTF("Hello from JNI LIBS!");
+#if __DEBUG__
+    return env->NewStringUTF("Hello from JNI LIBS! BUILD_TYPE=DEBUG");
+#else
+    return env->NewStringUTF("Hello from JNI LIBS! BUILD_TYPE=RELEASE");
+#endif
 }
