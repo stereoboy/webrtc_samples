@@ -143,6 +143,52 @@ gclient sync              // about 5 minutes
     [3343/3343] AR obj/libwebrtc.a
 
     ```
+
+### Packaging headers and libraries
+```bash
+cd webrtc-checkout
+mkdir include
+time bash ./copy_headers.sh ./src ./include
+Directory: ./src//api
+Directory: ./src//audio
+Directory: ./src//base
+Directory: ./src//call
+Directory: ./src//common_audio
+Directory: ./src//common_video
+Directory: ./src//experiments
+Directory: ./src//infra
+Directory: ./src//logging
+Directory: ./src//media
+Directory: ./src//modules
+Directory: ./src//net
+Directory: ./src//p2p
+Directory: ./src//pc
+Directory: ./src//resources
+Directory: ./src//rtc_base
+Directory: ./src//rtc_tools
+Directory: ./src//system_wrappers
+Directory: ./src//third_party/abseil-cpp
+Directory: ./src//video
+Directory: ./src//sdk
+Header files copied successfully from the selected directories.
+
+real    0m45.189s
+user    0m6.533s
+sys     0m37.817s
+
+```
+
+```bash
+tar czf libwebrtc.tar.gz ./include/ src/out/Debug/obj/libwebrtc.a  ./src/out/Release/obj/libwebrtc.a
+```
+```bash
+ls -l -h
+total 78M
+drwxrwxr-x 20 wom wom 4.0K Jan 17 14:42 include
+-rw-rw-r--  1 wom wom  78M Jan 17 14:44 libwebrtc.tar.gz
+drwxrwxr-x 37 wom wom 4.0K May 22  2024 src
+
+```
 ### llvm for C++ stdlib
 * get llvm original commit-id from libc++ of webrtc source tree
   ```
