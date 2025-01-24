@@ -1,3 +1,5 @@
+import pathlib
+
 import eventlet
 import socketio
 
@@ -13,7 +15,6 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter(fmt='%(asctime)s:[%(levelname)s][0x%(thread)X][%(name)s] (%(funcName)s:%(lineno)d) %(message)s'))
 logger.addHandler(handler)
 # logging.basicConfig(level=logging.WARNING, format='%(asctime)s:[%(levelname)s][%(process)d][%(name)s] - %(funcName)s:%(lineno)d - %(message)s')
-
 
 # sio = socketio.Server(logger=logger, engineio_logger=True, max_http_buffer_size=480*640*4*2)
 sio = socketio.Server(logger=False, engineio_logger=False, max_http_buffer_size=480*640*4*2)
@@ -130,4 +131,15 @@ def disconnect(sid):
 
 if __name__ == '__main__':
     logger.info('Signaling.Server')
-    eventlet.wsgi.server(eventlet.listen(('', config.PORT)), app)
+    certfile  = pathlib.Path(__file__).with_name('server.crt')
+    keyfile   = pathlib.Path(__file__).with_name('server.key')
+
+    eventlet.wsgi.server(
+        eventlet.wrap_ssl(
+            eventlet.listen(("", config.PORT)),
+            certfile=certfile,
+            keyfile=keyfile,
+            server_side=True
+        ),
+        app
+        )
