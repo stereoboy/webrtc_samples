@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-option(USE_PRECOMPILED_WEBRTC "use precompiled NVIDIA provided library" ON)
+option(USE_PRECOMPILED_NVIDIA_WEBRTC "use precompiled NVIDIA provided library" OFF)
+option(USE_PRECOMPILED_WEBRTC "use precompiled library" ON)
 option(USE_CUSTOM_LIBCXX "Use in-tree libc++ (buildtools/third_party/libc++, otherwise (OFF) use the host_cpu toolchain" ON)
 
 message(STATUS "USE_CUSTOM_LIBCXX=<${USE_CUSTOM_LIBCXX}>")
@@ -117,13 +118,26 @@ message(STATUS "GTHREAD_LIBRARIES: ${GTHREAD_LIBRARIES}")
 #  # ${webrtc_DIR}/third_party/libyuv/include
 #)
 
+message(STATUS "USE_PRECOMPILED_NVIDIA_WEBRTC=<${USE_PRECOMPILED_NVIDIA_WEBRTC}>")
 message(STATUS "USE_PRECOMPILED_WEBRTC=<${USE_PRECOMPILED_WEBRTC}>")
-if (USE_PRECOMPILED_WEBRTC)
+if(USE_PRECOMPILED_NVIDIA_WEBRTC)
   include_directories(
     ${CMAKE_SOURCE_DIR}/../precompiled/webrtc_headers
     )
   add_library(webrtc STATIC IMPORTED)
   set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/libwebrtc.a)
+elseif (USE_PRECOMPILED_WEBRTC)
+  include_directories(
+    ${CMAKE_SOURCE_DIR}/../precompiled/include
+    )
+  add_library(webrtc STATIC IMPORTED)
+  if(BUILD_TYPE STREQUAL "DEBUG")
+    set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/src/out/Debug${webrtc_suffix}/obj/libwebrtc.a)
+  elseif(BUILD_TYPE STREQUAL "RELEASE")
+    set_target_properties(webrtc PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../precompiled/src/out/Release${webrtc_suffix}/obj/libwebrtc.a)
+  else()
+    message(WARNING "Unknown build type: ${CMAKE_BUILD_TYPE}")
+  endif()
 else()
   include_directories(
     ${webrtc_DIR}
