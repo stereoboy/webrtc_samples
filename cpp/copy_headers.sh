@@ -21,6 +21,7 @@ resources \
 rtc_base \
 rtc_tools \
 system_wrappers \
+test \
 third_party/abseil-cpp \
 video \
 sdk"
