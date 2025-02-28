@@ -66,6 +66,7 @@ ABSL_FLAG(int,
           port,
           5000,
           "The port on which the server is listening.");
+ABSL_FLAG(bool, no_display, false, "No Display");
 
 
 #define TARGET_VIDEO_WIDTH      1920.0
@@ -923,10 +924,18 @@ int main(int argc, char* argv[]) {
             GtkApplication *app;
             int status;
 
-            app = gtk_application_new ("com.stereoboy.webrtc.example", G_APPLICATION_FLAGS_NONE);
-            g_signal_connect (app, "activate", G_CALLBACK (PeerVideoClient::gtk3_window_activate_callback), client.get());
-            status = g_application_run (G_APPLICATION (app), 0, nullptr);
-            g_object_unref (app);
+            if (!absl::GetFlag(FLAGS_no_display)) {
+                app = gtk_application_new ("com.stereoboy.webrtc.example", G_APPLICATION_FLAGS_NONE);
+                g_signal_connect (app, "activate", G_CALLBACK (PeerVideoClient::gtk3_window_activate_callback), client.get());
+                status = g_application_run (G_APPLICATION (app), 0, nullptr);
+                g_object_unref (app);
+            } else {
+                while(true) {
+                    std::this_thread::sleep_for(std::chrono::seconds(5));
+                    logger->info("Running...");
+                }
+            }
+
         }
     } catch (std::exception &e) {
         logger->error("Terminated by Interrupt: {} ", e.what());
