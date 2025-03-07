@@ -310,32 +310,6 @@ public:
 
     virtual ~PeerVideoClient() {
 
-        StopLocalRenderer();
-        StopRemoteRenderer();
-
-        if (peer_connection_) {
-            peer_connection_->Close();
-            peer_connection_ = nullptr;
-        }
-
-        if (peer_connection_factory_) {
-            peer_connection_factory_ = nullptr;
-        }
-
-        if (network_thread_) {
-            network_thread_->Stop();
-            network_thread_ = nullptr;
-        }
-
-        if (worker_thread_) {
-            worker_thread_->Stop();
-            worker_thread_ = nullptr;
-        }
-
-        if (signaling_thread_) {
-            signaling_thread_->Stop();
-            signaling_thread_ = nullptr;
-        }
         logger_->info("PeerVideoClient deleted");
     }
 
@@ -695,6 +669,58 @@ public:
         return true;
     }
 
+    bool deinit_webrtc(void) {
+
+        StopLocalRenderer();
+        StopRemoteRenderer();
+
+        if (video_sender_) {
+            auto error = peer_connection_->RemoveTrackOrError(video_sender_);
+            if (!error.ok()) {
+                logger_->error("Failed to remove video track from PeerConnection: {}", error.message());
+                return false;
+            }
+            logger_->info("Remove video track successfully.");
+            video_sender_ = nullptr;
+        }
+
+        if (video_track_) {
+            video_track_ = nullptr;
+        }
+
+        if (video_source_) {
+            video_source_ = nullptr;
+        }
+
+        if (peer_connection_) {
+            peer_connection_->Close();
+            peer_connection_ = nullptr;
+        }
+        logger_->info("peer_connection_ closed and deleted.");
+
+        if (peer_connection_factory_) {
+            peer_connection_factory_ = nullptr;
+        }
+        logger_->info("peer_connection_factory_ deleted.");
+
+        if (network_thread_) {
+            network_thread_->Stop();
+            network_thread_ = nullptr;
+        }
+
+        if (worker_thread_) {
+            worker_thread_->Stop();
+            worker_thread_ = nullptr;
+        }
+
+        if (signaling_thread_) {
+            signaling_thread_->Stop();
+            signaling_thread_ = nullptr;
+        }
+
+        return true;
+    }
+
     bool create_offer(void) {
         peer_connection_->CreateOffer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
         return true;
@@ -941,9 +967,11 @@ int main(int argc, char* argv[]) {
         logger->error("Terminated by Interrupt: {} ", e.what());
     }
 
-    rtc::CleanupSSL();
+    client->deinit_webrtc();
     client->deinit_signaling();
+    client = nullptr;
 
+    rtc::CleanupSSL();
     logger->info("Stopped.");
     return 0;
 }
