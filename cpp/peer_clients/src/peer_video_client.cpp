@@ -154,7 +154,12 @@ class PeerVideoClient : public PeerClient,
         }
 
         virtual ~VideoRenderer() {
-
+            // peer_client_->logger_->info("VideoRenderer trying to delete...: {}", name_);
+            if (rendered_track_) {
+                rendered_track_->RemoveSink(this);
+                rendered_track_ = nullptr;
+            }
+            peer_client_->logger_->info("VideoRenderer deleted: {}", name_);
         }
 
         //
