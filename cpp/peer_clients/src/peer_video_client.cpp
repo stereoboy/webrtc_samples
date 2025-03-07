@@ -954,7 +954,22 @@ public:
 
 };
 
+class InterruptException : public std::exception
+{
+public:
+    InterruptException(int s) : S(s) {}
+    int S;
+};
+
+void signal_handler(int s)
+{
+    throw InterruptException(s);
+}
+
 int main(int argc, char* argv[]) {
+
+    // init signal handler
+    std::signal(SIGINT, signal_handler);
 
     auto logger = spdlog::stdout_color_mt("PeerVideo");
     absl::SetProgramUsageMessage(
