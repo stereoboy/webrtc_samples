@@ -124,6 +124,10 @@ public:
 protected:
     explicit CapturerTrackSource(std::unique_ptr<webrtc::test::VcmCapturer> capturer)
         : VideoTrackSource(/*remote=*/false), capturer_(std::move(capturer)) {}
+    ~CapturerTrackSource() override {
+        // capturer_->Stop();
+        fprintf(stderr, "CapturerTrackSource::~CapturerTrackSource()\n");
+    }
 
 protected:
     rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override {
@@ -267,9 +271,14 @@ class PeerVideoClient : public PeerClient,
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     webrtc::PeerConnectionInterface::RTCConfiguration configuration_;
 
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
-
-    // std::unique_ptr<rtc::Thread> signaling_thread_;
+    //
+    // Store the following objects to ensure their lifetime is properly managed:
+    //  - modules/video_capture/linux/video_capture_v4l2.cc
+    // Some objects must be destroyed on the same thread they were created on.
+    //
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>   video_track_source_ = nullptr;
+    rtc::scoped_refptr<webrtc::VideoTrackInterface>         video_track_ = nullptr;
+    rtc::scoped_refptr<webrtc::RtpSenderInterface>          video_sender_ = nullptr;
 
     GtkWidget           *gtk3_window_ = nullptr;
     GtkWidget           *gtk3_grid_ = nullptr;
@@ -597,12 +606,28 @@ public:
         dependencies.signaling_thread = signaling_thread_.get();
         peer_connection_factory_       = webrtc::CreateModularPeerConnectionFactory(std::move(dependencies));
 #else
+
+        if (!network_thread_.get()) {
+            network_thread_ = rtc::Thread::Create();
+            network_thread_->SetName("network_thread", nullptr);
+            network_thread_->Start();
+        }
+
+        if (!worker_thread_.get()) {
+            worker_thread_ = rtc::Thread::Create();
+            worker_thread_->SetName("worker_thread", nullptr);
+            worker_thread_->Start();
+        }
+
         if (!signaling_thread_.get()) {
-            signaling_thread_ = rtc::Thread::CreateWithSocketServer();
+            // signaling_thread_ = rtc::Thread::CreateWithSocketServer();
+            signaling_thread_ = rtc::Thread::Create();
+            signaling_thread_->SetName("signaling_thread", nullptr);
             signaling_thread_->Start();
         }
+
         peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
-            nullptr /* network_thread */, nullptr /* worker_thread */,
+            network_thread_.get(), worker_thread_.get(),
             signaling_thread_.get(), nullptr /* default_adm */,
             webrtc::CreateBuiltinAudioEncoderFactory(),
             webrtc::CreateBuiltinAudioDecoderFactory(),
@@ -650,18 +675,19 @@ public:
             logger_->info("\t[{}] Device Name: {}, Unique Name: {}", i, device_name, unique_name, product_name);
         }
 
-        rtc::scoped_refptr<CapturerTrackSource> video_device = CapturerTrackSource::Create();
-        if (!video_device) {
+        video_track_source_ = CapturerTrackSource::Create();
+        if (!video_track_source_) {
             logger_->error("Failed to create VideoTrackSource ");
             return false;
         }
-        video_track_ = peer_connection_factory_->CreateVideoTrack(video_device, "video_label");
+        video_track_ = peer_connection_factory_->CreateVideoTrack(video_track_source_, "video_label");
         // video_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
         StartLocalRenderer(video_track_.get());
         auto result_or_error = peer_connection_->AddTrack(video_track_, {"stream_id"});
         if (!result_or_error.ok()) {
             logger_->error("Failed to add video track to PeerConnection: {}", result_or_error.error().message());
         }
+        video_sender_ = std::move(result_or_error.value());
         logger_->info("Add video track successfully.");
 
         // TODO
@@ -688,8 +714,8 @@ public:
             video_track_ = nullptr;
         }
 
-        if (video_source_) {
-            video_source_ = nullptr;
+        if (video_track_source_) {
+            video_track_source_ = nullptr;
         }
 
         if (peer_connection_) {
