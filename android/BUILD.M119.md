@@ -418,6 +418,66 @@
 
   ```
 
+### Packaging headers and libraries
+```bash
+cd webrtc_android_M119
+mkdir include
+time bash <path>/webrtc_samples/android/copy_headers.sh  ./src ./include
+Directory: ./src/api
+Directory: ./src/audio
+Directory: ./src/base
+Directory: ./src/call
+Directory: ./src/common_audio
+Directory: ./src/common_video
+Directory: ./src/experiments
+Directory: ./src/infra
+Directory: ./src/logging
+Directory: ./src/media
+Directory: ./src/modules
+Directory: ./src/net
+Directory: ./src/p2p
+Directory: ./src/pc
+Directory: ./src/resources
+Directory: ./src/rtc_base
+Directory: ./src/rtc_tools
+Directory: ./src/system_wrappers
+Directory: ./src/test
+Directory: ./src/third_party/abseil-cpp
+Directory: ./src/video
+Directory: ./src/sdk
+Header files copied successfully from the selected directories.
+
+real	0m12.616s
+user	0m9.684s
+sys	0m3.384s
+```
+
+```bash
+tar cvzf libwebrtc_android.M119.tar.gz ./include/ \
+./src/out/arm64-v8a_debug/obj/libwebrtc.a \
+./src/out/arm64-v8a_debug/lib.java/sdk/android/libwebrtc.jar \
+./src/out/arm64-v8a/obj/libwebrtc.a  \
+./src/out/arm64-v8a/lib.java/sdk/android/libwebrtc.jar \
+./src/test/vcm_capturer.cc \
+./src/test/platform_video_capturer.cc \
+./src/test/test_video_capturer.cc
+```
+```bash
+ls -alh
+total 75M
+drwxrwxr-x  6 wom wom 4.0K  3월 28 15:01 .
+drwx------ 12 wom wom 4.0K 10월 28 15:54 ..
+drwxrwxr-x 21 wom wom 4.0K  3월 28 14:57 include
+-rw-rw-r--  1 wom wom  74M  3월 28 15:02 libwebrtc_android.M119.tar.gz
+drwxrwxr-x 38 wom wom 4.0K  2월  3 11:22 src
+```
+
+### Use Package
+```bash
+mkdir prebuilt
+tar xzvf libwebrtc_android.M119.tar.gz -C ./prebuilt/
+```
+
 ## Copy headers for Android (for Android Studio 4.2.2 indexing)
 ```bash
 time bash ./copy_headers.M119.sh <path>/webrtc_android_M119/src/ <path>/webrtc_android_M119/include

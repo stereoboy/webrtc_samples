@@ -44,8 +44,8 @@
   ```
   ```
   cd src
-  git checkout branch-heads/6045
-  src ((HEAD detached at branch-heads/6045))$ time gclient sync -D
+  git checkout branch-heads/5790
+  src ((HEAD detached at branch-heads/5790))$ time gclient sync -D
   Running hooks: 100% (31/31), done.
 
   real    9m32.739s

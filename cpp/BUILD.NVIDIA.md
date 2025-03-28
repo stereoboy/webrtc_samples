@@ -179,7 +179,12 @@ sys     0m37.817s
 ```
 
 ```bash
-tar czf libwebrtc.tar.gz ./include/ src/out/Debug/obj/libwebrtc.a  ./src/out/Release/obj/libwebrtc.a
+tar cvzf libwebrtc.d0c86830d0.tar.gz ./include/ \
+./src/out/Debug/obj/libwebrtc.a \
+./src/out/Release/obj/libwebrtc.a \
+./src/test/vcm_capturer.cc \
+./src/test/platform_video_capturer.cc \
+./src/test/test_video_capturer.cc
 ```
 ```bash
 ls -l -h
@@ -187,8 +192,8 @@ total 78M
 drwxrwxr-x 20 wom wom 4.0K Jan 17 14:42 include
 -rw-rw-r--  1 wom wom  78M Jan 17 14:44 libwebrtc.tar.gz
 drwxrwxr-x 37 wom wom 4.0K May 22  2024 src
-
 ```
+
 ### llvm for C++ stdlib
 * get llvm original commit-id from libc++ of webrtc source tree
   ```
@@ -316,5 +321,60 @@ patch -p3 <  ./../../../webrtc-checkout/src/third_party/abseil-cpp/patches/0003-
 ### Build
 ```
 mkdir build_precompiled && cd build_precompiled
-cmake -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=ON .. && make -j
+cmake -DUSE_PRECOMPILED_NVIDIA_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=ON -DCMAKE_BUILD_TYPE=Debug .. && make -j
+
+cmake -DUSE_PRECOMPILED_NVIDIA_WEBRTC_=ON -DUSE_CUSTOM_LIBCXX=OFF -DCMAKE_BUILD_TYPE=Debug .. && make -j
+```
+
+### peer_audio_client
+* Pulseaudio
+  * https://freedesktop.org/software/pulseaudio/doxygen/index.html
+
+* Archlinux's Pulseaudio Wiki
+  * https://wiki.archlinux.org/title/PulseAudio
+
+```
+sudo apt-get install libpulse-dev
+```
+* `libpulse`
+  ```
+  pa_context_get_sink_info_list
+
+  pa_context_get_source_info_list
+
+  pa_context_set_default_sink
+
+  pa_context_set_default_source
+  ```
+
+#### PulseAudio Setup for Linux
+  ```
+  pactl list sources
+  ```
+
+  ```
+  pactl list sinks
+  ```
+  ```
+  pactl info
+  ```
+  ```
+  $ pactl get-default-sink
+  alsa_output.pci-0000_00_1f.3.iec958-stereo
+  $ pactl list short sinks
+  1       alsa_output.pci-0000_00_1f.3.iec958-stereo      module-alsa-card.c      s16le 2ch 44100Hz       IDLE
+  84      alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1 module-alsa-card.c      s16le 2ch 44100Hz       IDLE
+  $ pactl set-default-sink alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1
+  $ pactl get-default-sink
+  alsa_output.pci-0000_01_00.1.hdmi-stereo-extra1
+  ```
+### peer_video_client
+* GTK3 for visualization
+  * https://docs.gtk.org/gtk3/getting_started.html
+```
+sudo apt-get install libgtk-3-dev libglib2.0-dev
+```
+* `libyuv`
+```
+sudo apt-get install libyuv-dev libyuv0
 ```

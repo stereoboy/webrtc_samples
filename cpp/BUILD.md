@@ -86,6 +86,52 @@ gclient sync              // about 5 minutes
     [7242/7242] STAMP obj/default.stamp
     ```
 
+### Packaging headers and libraries
+```bash
+cd webrtc-checkout
+mkdir include
+time bash ./copy_headers.sh ./src ./include
+Directory: ./src//api
+Directory: ./src//audio
+Directory: ./src//base
+Directory: ./src//call
+Directory: ./src//common_audio
+Directory: ./src//common_video
+Directory: ./src//experiments
+Directory: ./src//infra
+Directory: ./src//logging
+Directory: ./src//media
+Directory: ./src//modules
+Directory: ./src//net
+Directory: ./src//p2p
+Directory: ./src//pc
+Directory: ./src//resources
+Directory: ./src//rtc_base
+Directory: ./src//rtc_tools
+Directory: ./src//system_wrappers
+Directory: ./src//third_party/abseil-cpp
+Directory: ./src//video
+Directory: ./src//sdk
+Header files copied successfully from the selected directories.
+
+real    0m45.189s
+user    0m6.533s
+sys     0m37.817s
+
+```
+
+```bash
+tar czf libwebrtc.tar.gz ./include/ ./src/out/Debug/obj/libwebrtc.a  ./src/out/Release/obj/libwebrtc.a
+```
+```bash
+ls -l -h
+total 78M
+drwxrwxr-x 20 wom wom 4.0K Jan 17 14:42 include
+-rw-rw-r--  1 wom wom  78M Jan 17 14:44 libwebrtc.tar.gz
+drwxrwxr-x 37 wom wom 4.0K May 22  2024 src
+
+```
+
 ### llvm for C++ stdlib
 * https://libcxx.llvm.org/BuildingLibcxx.html
 * Find right version of clang
@@ -166,6 +212,20 @@ mkdir build_debug_use_custom_libcxx && cd build_debug_use_custom_libcxx
 cmake -DUSE_PRECOMPILED_WEBRTC=OFF -DUSE_CUSTOM_LIBCXX=ON -DCMAKE_BUILD_TYPE=Debug  .. && make -j
 ```
 
+### Build with precompiled webrtc
+
+```
+mkdir precompiled && cp libwebrtc.tar.gz precompiled && cd precompiled
+tar zxf libwebrtc.tar.gz
+```
+```
+mkdir build && cd build
+cmake -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=OFF .. && make -j
+
+mkdir build_use_custom_libcxx && cd build_use_custom_libcxx
+cmake -DUSE_PRECOMPILED_WEBRTC=ON -DUSE_CUSTOM_LIBCXX=ON .. && make -j
+```
+
 ### peer_audio_client
 * Pulseaudio
   * https://freedesktop.org/software/pulseaudio/doxygen/index.html
@@ -212,7 +272,7 @@ sudo apt-get install libpulse-dev
 * GTK3 for visualization
   * https://docs.gtk.org/gtk3/getting_started.html
 ```
-sudo apt-get install libgtk-3-dev
+sudo apt-get install libgtk-3-dev libglib2.0-dev
 ```
 * `libyuv`
 ```
