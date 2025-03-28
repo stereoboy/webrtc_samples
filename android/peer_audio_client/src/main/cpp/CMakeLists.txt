@@ -36,9 +36,9 @@ set(common_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common)
 # refer to app/build.gradle, jniLibs section for that purpose.
 # ${ANDROID_ABI} is handy for our purpose here. Probably this ${ANDROID_ABI} is
 # the most valuable thing of this sample, the rest are pretty much normal cmake
-add_library(lib_sio_client STATIC IMPORTED)
+add_library(lib_sio_client SHARED IMPORTED)
 set_target_properties(lib_sio_client PROPERTIES IMPORTED_LOCATION
-        ${distribution_DIR}/lib/${ANDROID_ABI}/libsioclient.a)
+        ${distribution_DIR}/lib/${ANDROID_ABI}/libsioclient.so)
 
 # build application's shared lib
 set(CMAKE_CXX_STANDARD 17)

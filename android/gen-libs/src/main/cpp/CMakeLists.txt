@@ -30,7 +30,7 @@ file(MAKE_DIRECTORY ${lib_build_DIR})
 add_subdirectory(${lib_src_DIR}/gmath ${lib_build_DIR}/gmath)
 add_subdirectory(${lib_src_DIR}/gperf ${lib_build_DIR}/gperf)
 
-#set(BUILD_SHARED_LIBS ON)
+set(BUILD_SHARED_LIBS ON)
 add_subdirectory(${lib_src_DIR}/socket.io-client-cpp ${lib_build_DIR}/socket.io-client-cpp)
 
 # copy out the lib binary... need to leave the static lib around to pass gradle check
