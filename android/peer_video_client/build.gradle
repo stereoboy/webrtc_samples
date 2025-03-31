@@ -1,6 +1,24 @@
 apply plugin: 'com.android.application'
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
+def webrtcDir = localProperties.getProperty("webrtc.dir")
+//def webrtcJavaDir = localProperties.getProperty("webrtc.java.dir")
+
 android {
+    signingConfigs {
+        release {
+            storeFile file(project.findProperty('STORE_FILE'))
+            storePassword project.findProperty("KEYSTORE_PASSWORD")
+            keyPassword project.findProperty("KEY_PASSWORD")
+            keyAlias 'ReleaseKey'
+        }
+    }
     compileSdkVersion 32
     ndkVersion "21.4.7075529"
     defaultConfig {
@@ -11,15 +29,34 @@ android {
         versionName = '1.0'
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_STL=c++_static'
+                //
+                // reference: https://stackoverflow.com/questions/42715120/how-can-i-pass-specific-arguments-example-opencv-dir-to-cmake-through-gradle
+                //
+                arguments '-DANDROID_STL=c++_static', '-DWEBRTC_DIR='+webrtcDir.toString(), "-DCMAKE_VERBOSE_MAKEFILE=ON"
             }
+        }
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
     }
     buildTypes {
+        debug {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Debug"
+                }
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'),
-                          'proguard-rules.pro'
+                    'proguard-rules.pro'
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Release"
+                }
+            }
+            signingConfig signingConfigs.release
         }
     }
     sourceSets {
@@ -34,6 +71,18 @@ android {
             path 'src/main/cpp/CMakeLists.txt'
         }
     }
+
+    //
+    // to fix java error "java.lang.NoSuchMethodError: No static method metafactory"
+    // references
+    //  - https://developer.android.com/studio/write/java8-support
+    //  - https://github.com/square/retrofit/issues/3280
+    //  - https://stackoverflow.com/questions/67749283/java-lang-nosuchmethoderror-no-static-method-metafactory
+    //
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
 }
 
 dependencies {
@@ -42,4 +91,6 @@ dependencies {
     // and also uncommented out the one in settings.gradle
     // after lib is generated, just comment them out again
     api project(':gen-libs')
+    debugImplementation fileTree(dir: webrtcDir.toString() + "src/out/arm64-v8a_debug/lib.java/sdk/android/", include: ['libwebrtc.jar'], exclude: [])
+    releaseImplementation fileTree(dir: webrtcDir.toString() + "src/out/arm64-v8a/lib.java/sdk/android/", include: ['libwebrtc.jar'], exclude: [])
 }
