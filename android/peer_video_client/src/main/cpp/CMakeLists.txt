@@ -46,7 +46,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(hello-libs SHARED
         hello-libs.cpp
-        peer_video_client.cpp)
+        peer_video_client.cpp
+        ${WEBRTC_DIR}/src/test/vcm_capturer.cc
+        ${WEBRTC_DIR}/src/test/platform_video_capturer.cc
+        ${WEBRTC_DIR}/src/test/test_video_capturer.cc
+        )
 
 target_include_directories(hello-libs PRIVATE
         ${distribution_DIR}/include
@@ -125,6 +129,14 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
             HAVE_PTHREAD
     )
 endif()
+
+#
+# resolve the error, undefined reference to `typeinfo for webrtc::VideoTrackSource'
+#
+target_compile_options(
+        hello-libs PUBLIC
+        -fno-rtti
+)
 
 #
 # To Link OpenSLES

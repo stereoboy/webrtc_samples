@@ -5,6 +5,8 @@
 #ifndef ANDROID_LOGGING_H
 #define ANDROID_LOGGING_H
 
+#include <android/log.h>
+
 #define  LOGUNK(LOG_TAG, ...)  __android_log_print(ANDROID_LOG_UNKNOWN,LOG_TAG,__VA_ARGS__)
 #define  LOGDEF(LOG_TAG, ...)  __android_log_print(ANDROID_LOG_DEFAULT,LOG_TAG,__VA_ARGS__)
 #define  LOGV(LOG_TAG, ...)  __android_log_print(ANDROID_LOG_VERBOSE,LOG_TAG,__VA_ARGS__)

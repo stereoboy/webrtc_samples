@@ -5,7 +5,6 @@
 #include <cstring>
 #include <jni.h>
 #include <cinttypes>
-#include <android/log.h>
 
 #include <chrono>
 
@@ -17,9 +16,6 @@
 //#include <memory>
 // #include <asio.hpp>
 // #include <asio/ssl.hpp>
-
-#include "logging.h"
-#include "peer_client.h"
 
 #include <modules/utility/include/jvm_android.h>
 #include <sdk/android/native_api/base/init.h>
