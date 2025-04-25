@@ -453,7 +453,7 @@ sys	0m3.384s
 ```
 
 ```bash
-tar cvzf libwebrtc_android.M119.tar.gz ./include/ \
+tar cvzf libwebrtc-android-arm64-v8a.M119.tar.gz ./include/ \
 ./src/out/arm64-v8a_debug/obj/libwebrtc.a \
 ./src/out/arm64-v8a_debug/lib.java/sdk/android/libwebrtc.jar \
 ./src/out/arm64-v8a/obj/libwebrtc.a  \
@@ -468,14 +468,14 @@ total 75M
 drwxrwxr-x  6 wom wom 4.0K  3월 28 15:01 .
 drwx------ 12 wom wom 4.0K 10월 28 15:54 ..
 drwxrwxr-x 21 wom wom 4.0K  3월 28 14:57 include
--rw-rw-r--  1 wom wom  74M  3월 28 15:02 libwebrtc_android.M119.tar.gz
+-rw-rw-r--  1 wom wom  74M  3월 28 15:02 libwebrtc-android-arm64-v8a.M119.tar.gz
 drwxrwxr-x 38 wom wom 4.0K  2월  3 11:22 src
 ```
 
 ### Use Package
 ```bash
 mkdir prebuilt
-tar xzvf libwebrtc_android.M119.tar.gz -C ./prebuilt/
+tar xzvf libwebrtc-android-arm64-v8a.M119.tar.gz -C ./prebuilt/
 ```
 
 ## Copy headers for Android (for Android Studio 4.2.2 indexing)
