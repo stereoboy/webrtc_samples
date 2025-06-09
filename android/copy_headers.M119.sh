@@ -21,7 +21,9 @@ resources \
 rtc_base \
 rtc_tools \
 system_wrappers \
+test \
 third_party/abseil-cpp \
+third_party/libyuv \
 video \
 sdk"
 

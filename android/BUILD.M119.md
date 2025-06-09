@@ -422,7 +422,7 @@
 ```bash
 cd webrtc_android_M119
 mkdir include
-time bash <path>/webrtc_samples/android/copy_headers.sh  ./src ./include
+time bash <path>/webrtc_samples/android/copy_headers.M119.sh  ./src ./include
 Directory: ./src/api
 Directory: ./src/audio
 Directory: ./src/base
